@@ -1,5 +1,5 @@
 from collections import defaultdict
-import cPickle as pickle
+import pickle
 import os
 import time
 
@@ -100,19 +100,19 @@ def main(_):
     do_generate = bool(FLAGS.generate_fp)
 
     # Load data
-    print 'Loading data'
+    print('Loading data')
     train_data, valid_data, test_data = open_dataset_fps(FLAGS.train_txt_fp, FLAGS.valid_txt_fp, FLAGS.test_txt_fp)
 
     # Calculate validation metrics
     if FLAGS.audio_z_score:
         z_score_fp = os.path.join(FLAGS.experiment_dir, 'valid_mean_std.pkl')
         if do_valid and not os.path.exists(z_score_fp):
-            print 'Calculating validation metrics'
+            print('Calculating validation metrics')
             mean_per_band, std_per_band = calc_mean_std_per_band(valid_data)
             with open(z_score_fp, 'wb') as f:
                 pickle.dump((mean_per_band, std_per_band), f)
         else:
-            print 'Loading validation metrics'
+            print('Loading validation metrics')
             with open(z_score_fp, 'rb') as f:
                 mean_per_band, std_per_band = pickle.load(f)
 
@@ -121,7 +121,7 @@ def main(_):
             apply_z_norm(data, mean_per_band, std_per_band)
 
     # Flatten the data into chart references for easier iteration
-    print 'Flattening datasets into charts'
+    print('Flattening datasets into charts')
     charts_train = flatten_dataset_to_charts(train_data)
     charts_valid = flatten_dataset_to_charts(valid_data)
     charts_test = flatten_dataset_to_charts(test_data)
@@ -130,8 +130,8 @@ def main(_):
     charts_train_len = len(charts_train)
     charts_train = filter(lambda x: x.get_nannotations() >= FLAGS.nunroll, charts_train)
     if len(charts_train) != charts_train_len:
-        print '{} charts too small for training'.format(charts_train_len - len(charts_train))
-    print 'Train set: {} charts, valid set: {} charts, test set: {} charts'.format(len(charts_train), len(charts_valid), len(charts_test))
+        print('{} charts too small for training'.format(charts_train_len - len(charts_train)))
+    print('Train set: {} charts, valid set: {} charts, test set: {} charts'.format(len(charts_train), len(charts_valid), len(charts_test)))
 
     # Load ID maps
     diff_feet_to_id = None
@@ -191,7 +191,7 @@ def main(_):
     feats_config['bucket_time_diff_max'] = FLAGS.feat_bucket_time_diff_max
     feats_config_eval = dict(feats_config)
     feats_config_eval['audio_deviation_max'] = 0
-    print 'Feature configuration (nfeats={}): {}'.format(nfeats, feats_config)
+    print('Feature configuration (nfeats={}): {}'.format(nfeats, feats_config))
 
     # Create model config
     rnn_proj_init = tf.constant_initializer(0.0, dtype=dtype) if FLAGS.sym_rnn_pretrain_model_ckpt_fp else tf.uniform_unit_scaling_initializer(factor=1.0, dtype=dtype)
@@ -226,16 +226,16 @@ def main(_):
         'grad_clip': FLAGS.grad_clip,
         'opt': FLAGS.opt,
     }
-    print 'Model configuration: {}'.format(model_config)
+    print('Model configuration: {}'.format(model_config))
 
     with tf.Graph().as_default(), tf.Session() as sess:
         if do_train:
-            print 'Creating train model'
+            print('Creating train model')
             with tf.variable_scope('model_ss', reuse=None):
                 model_train = SymNet(mode='train', batch_size=FLAGS.batch_size, **model_config)
 
         if do_train_eval or do_eval:
-            print 'Creating eval model'
+            print('Creating eval model')
             with tf.variable_scope('model_ss', reuse=do_train):
                 eval_batch_size = FLAGS.batch_size
                 if FLAGS.rnn_size > 0 and FLAGS.rnn_nlayers > 0:
@@ -245,7 +245,7 @@ def main(_):
                 model_early_stop_accuracy = tf.train.Saver(tf.global_variables(), max_to_keep=None)
 
         if do_generate:
-            print 'Creating generation model'
+            print('Creating generation model')
             with tf.variable_scope('model_ss', reuse=do_train):
                 eval_batch_size = FLAGS.batch_size
                 model_gen = SymNet(mode='gen', batch_size=1, **model_config)
@@ -253,15 +253,15 @@ def main(_):
         # Restore or init model
         model_saver = tf.train.Saver(tf.global_variables())
         if FLAGS.model_ckpt_fp:
-            print 'Restoring model weights from {}'.format(FLAGS.model_ckpt_fp)
+            print('Restoring model weights from {}'.format(FLAGS.model_ckpt_fp))
             model_saver.restore(sess, FLAGS.model_ckpt_fp)
         else:
-            print 'Initializing model weights from scratch'
+            print('Initializing model weights from scratch')
             sess.run(tf.global_variables_initializer())
 
             # Restore or init sym weights
             if FLAGS.sym_rnn_pretrain_model_ckpt_fp:
-                print 'Restoring pretrained weights from {}'.format(FLAGS.sym_rnn_pretrain_model_ckpt_fp)
+                print('Restoring pretrained weights from {}'.format(FLAGS.sym_rnn_pretrain_model_ckpt_fp))
                 var_list_old = filter(lambda x: 'nosym' not in x.name and 'cnn' not in x.name, tf.global_variables())
                 pretrain_saver = tf.train.Saver(var_list_old)
                 pretrain_saver.restore(sess, FLAGS.sym_rnn_pretrain_model_ckpt_fp)
@@ -305,7 +305,7 @@ def main(_):
             examples_per_batch *= model_train.out_nunroll
             batches_per_epoch = train_nexamples // examples_per_batch
             nbatches = FLAGS.nepochs * batches_per_epoch
-            print '{} frames in data, {} batches per epoch, {} batches total'.format(train_nexamples, batches_per_epoch, nbatches)
+            print('{} frames in data, {} batches per epoch, {} batches total'.format(train_nexamples, batches_per_epoch, nbatches))
 
             # Init epoch
             lr_summary = model_train.assign_lr(sess, FLAGS.lr)
@@ -335,14 +335,14 @@ def main(_):
 
                 if batch_num % batches_per_epoch == 0:
                     epoch_num = batch_num // batches_per_epoch
-                    print 'Completed epoch {}'.format(epoch_num)
+                    print('Completed epoch {}'.format(epoch_num))
 
                     lr_decay = FLAGS.lr_decay_rate ** max(epoch_num - FLAGS.lr_decay_delay, 0)
                     lr_summary = model_train.assign_lr(sess, FLAGS.lr * lr_decay)
                     summary_writer.add_summary(lr_summary, batch_num)
 
                     epoch_xentropy = np.mean(epoch_xentropies)
-                    print 'Epoch mean cross-entropy (nats) {}'.format(epoch_xentropy)
+                    print('Epoch mean cross-entropy (nats) {}'.format(epoch_xentropy))
                     epoch_summary = sess.run(epoch_summaries, feed_dict={epoch_mean_xentropy: epoch_xentropy, epoch_mean_time: np.mean(epoch_times), epoch_var_xentropy: np.var(epoch_xentropies), epoch_var_time: np.var(epoch_times), epoch_time_total: np.sum(epoch_times)})
                     summary_writer.add_summary(epoch_summary, batch_num)
 
@@ -350,13 +350,13 @@ def main(_):
                     epoch_times = []
 
                 if batch_num % FLAGS.nbatches_per_ckpt == 0:
-                    print 'Saving model weights...'
+                    print('Saving model weights...')
                     ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_train')
                     model_saver.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
-                    print 'Done saving!'
+                    print('Done saving!')
 
                 if do_train_eval and batch_num % FLAGS.nbatches_per_eval == 0:
-                    print 'Evaluating...'
+                    print('Evaluating...')
                     eval_start_time = time.time()
 
                     metrics = defaultdict(list)
@@ -405,22 +405,22 @@ def main(_):
 
                     xentropy_avg_mean = metrics['xentropy_avg'][0]
                     if xentropy_avg_mean < eval_best_xentropy_avg:
-                        print 'Xentropy {} better than previous {}'.format(xentropy_avg_mean, eval_best_xentropy_avg)
+                        print('Xentropy {} better than previous {}'.format(xentropy_avg_mean, eval_best_xentropy_avg))
                         ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_xentropy_avg')
                         model_early_stop_xentropy_avg.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
                         eval_best_xentropy_avg = xentropy_avg_mean
 
                     accuracy_mean = metrics['accuracy'][0]
                     if accuracy_mean > eval_best_accuracy:
-                        print 'Accuracy {} better than previous {}'.format(accuracy_mean, eval_best_accuracy)
+                        print('Accuracy {} better than previous {}'.format(accuracy_mean, eval_best_accuracy))
                         ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_accuracy')
                         model_early_stop_accuracy.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
                         eval_best_accuracy = accuracy_mean
 
-                    print 'Done evaluating'
+                    print('Done evaluating')
 
         if do_eval:
-            print 'Evaluating...'
+            print('Evaluating...')
 
             metrics = defaultdict(list)
 
@@ -462,13 +462,13 @@ def main(_):
             for metric_name in ['xentropy_avg', 'perplexity', 'accuracy']:
                 metric_stats = metrics[metric_name]
                 copy_pasta += list(metric_stats)
-                print '{}: {}'.format(metric_name, metric_stats)
-            print 'COPY PASTA:'
-            print ','.join([str(x) for x in copy_pasta])
+                print('{}: {}'.format(metric_name, metric_stats))
+            print('COPY PASTA:')
+            print(','.join([str(x) for x in copy_pasta]))
 
         # TODO: This currently only works for VERY specific model (delta time LSTM)
         if do_generate:
-            print 'Generating...'
+            print('Generating...')
 
             with open(FLAGS.generate_fp, 'r') as f:
                 step_times = [float(x) for x in f.read().split(',')]
@@ -506,7 +506,7 @@ def main(_):
                 while sym_idx <= 1:
                     sym_idx = weighted_pick(scores)
                     if sym_idx <= 1:
-                        print 'rare'
+                        print('rare')
                 sym_idx = sym_idx - 1 # remove special
                 sym = idx_to_sym[sym_idx]
 

@@ -48,9 +48,9 @@ def write_preview_wav(wav_fp, note_beats_and_abs_times, wav_fs=11025.0):
             pulse_f[note_type_to_idx[note_type]][sample] = 1.0
 
     scale = [440.0, 587.33, 659.25, 783.99]
-    freqs = [scale[i % 4] * math.pow(2.0, (i // 4) - 1) for i in xrange(num_note_types)]
+    freqs = [scale[i % 4] * math.pow(2.0, (i // 4) - 1) for i in range(num_note_types)]
     metro_f = np.zeros(wav_len)
-    for idx in xrange(num_note_types):
+    for idx in range(num_note_types):
         click_len = 0.05
         click_t = np.arange(0.0, click_len, dt)
         click_atk = 0.02
@@ -74,6 +74,6 @@ if __name__ == '__main__':
         meta = json.loads(f.read())
 
     for i, chart in enumerate(meta['charts']):
-        print '{}: {} {} {}'.format(i, chart['type'], chart['difficulty_fine'], chart['desc_or_author'])
+        print('{}: {} {} {}'.format(i, chart['type'], chart['difficulty_fine'], chart['desc_or_author']))
     chart_idx = int(raw_input('Which chart? '))
     write_preview_wav(wav_fp, meta['charts'][chart_idx]['notes'])

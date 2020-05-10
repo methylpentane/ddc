@@ -6,7 +6,7 @@ def bpm_to_spb(bpm):
 def calc_segment_lengths(bpms):
     assert len(bpms) > 0
     segment_lengths = []
-    for i in xrange(len(bpms) - 1):
+    for i in range(len(bpms) - 1):
         spb = bpm_to_spb(bpms[i][1])
         segment_lengths.append(spb * (bpms[i + 1][0] - bpms[i][0]))
     return segment_lengths

@@ -143,4 +143,4 @@ if __name__ == '__main__':
                     smlog.error('Unicode error in {}'.format(sm_fp))
                     continue
 
-            print 'Parsed {} - {}: {} charts'.format(pack_name, sm_name, len(out_json['charts']))
+            print('Parsed {} - {}: {} charts'.format(pack_name, sm_name, len(out_json['charts'])))

@@ -43,8 +43,8 @@ def meta_to_sm(meta):
             max_timestep += subdiv - (max_timestep % subdiv)
 
         null_code = '0' * len(cnotes[0][2])
-        timesteps = [timestep_to_code.get(i, null_code) for i in xrange(max_timestep)]
-        measures = [timesteps[i:i+subdiv] for i in xrange(0, max_timestep, subdiv)]
+        timesteps = [timestep_to_code.get(i, null_code) for i in range(max_timestep)]
+        measures = [timesteps[i:i+subdiv] for i in range(0, max_timestep, subdiv)]
         measures_txt = '\n,\n'.join(['\n'.join(measure) for measure in measures])
 
         chart_txt = _CHART_TEMPL.format(

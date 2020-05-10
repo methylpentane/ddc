@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import os
 
 import numpy as np
@@ -26,12 +26,12 @@ dtype = tf.float32
 BATCH_SIZE = 512
 
 def test():
-    print 'Loading data...'
+    print('Loading data...')
     with open(FLAGS.data_txt_fp, 'r') as f:
         pkl_fps = f.read().split()
 
     # Create model
-    print 'Creating model'
+    print('Creating model')
     dense_layer_sizes = [int(x) for x in FLAGS.dense_layer_sizes.split(',')]
     model = OnsetCNN(context_radius=FLAGS.context_radius,
                      feat_dim=FLAGS.feat_dim,
@@ -40,7 +40,7 @@ def test():
                      export_feature_layer=FLAGS.export_feature_layer)
 
     if FLAGS.z_normalize_coeffs:
-        print 'Normalizing data to zero mean unit var'
+        print('Normalizing data to zero mean unit var')
         with open(os.path.join(FLAGS.train_dir, 'test_mean_std.pkl'), 'rb') as f:
             mean_per_band, std_per_band = pickle.load(f)
 
@@ -48,7 +48,7 @@ def test():
         os.makedirs(FLAGS.out_dir)
 
     with tf.Session() as sess:
-        print 'Restoring model weights from {}'.format(FLAGS.train_ckpt_fp)
+        print('Restoring model weights from {}'.format(FLAGS.train_ckpt_fp))
         model.train_saver.restore(sess, FLAGS.train_ckpt_fp)
 
         for pkl_fp in tqdm(pkl_fps):
@@ -63,7 +63,7 @@ def test():
 
             song_context, _ = model.prepare_test(song_features, 0)
             song_export = []
-            for i in xrange(0, nframes, BATCH_SIZE):
+            for i in range(0, nframes, BATCH_SIZE):
                 batch_features = song_context[i:i + BATCH_SIZE]
                 feed_dict = {
                     model.input_context: batch_features,

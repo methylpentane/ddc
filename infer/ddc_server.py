@@ -43,6 +43,7 @@ def load_sp_model(sp_ckpt_fp, batch_size=128):
             export_feat_name=None,
             zack_hack=0)
     model_sp_vars = filter(lambda v: 'model_sp' in v.name, tf.all_variables())
+    model_sp_vars = [x for x in model_sp_vars]
     saver = tf.train.Saver(model_sp_vars)
     saver.restore(sess, sp_ckpt_fp)
     return model_sp
@@ -80,6 +81,7 @@ def load_ss_model(ss_ckpt_fp):
             dnn_keep_prob=1.0
         )
     model_ss_vars = filter(lambda v: 'model_ss' in v.name, tf.all_variables())
+    model_ss_vars = [x for x in model_ss_vars]
     saver = tf.train.Saver(model_ss_vars)
     saver.restore(sess, ss_ckpt_fp)
     return model_ss
@@ -136,7 +138,7 @@ def create_chart_dir(
         ss_model, idx_to_label,
         out_dir, delete_audio=False):
     if not artist or not title:
-        print 'Extracting metadata from {}'.format(audio_fp)
+        print('Extracting metadata from {}'.format(audio_fp))
         meta_reader = MetadataReader(filename=audio_fp)
         metadata = meta_reader()
         if not artist:
@@ -148,7 +150,7 @@ def create_chart_dir(
         if not title:
             title = 'Unknown Title'
 
-    print 'Loading {} - {}'.format(artist, title)
+    print('Loading {} - {}'.format(artist, title))
     try:
         song_feats = extract_mel_feats(audio_fp, analyzers, nhop=441)
     except:
@@ -156,7 +158,7 @@ def create_chart_dir(
     song_feats -= norm[0]
     song_feats /= norm[1]
     song_len_sec = song_feats.shape[0] / _HZ
-    print 'Processed {} minutes of features'.format(song_len_sec / 60.0)
+    print('Processed {} minutes of features'.format(song_len_sec / 60.0))
 
     diff_chart_txts = []
     for diff in diffs:
@@ -168,10 +170,10 @@ def create_chart_dir(
         feats_other = np.zeros((sp_batch_size, 1, 5), dtype=np.float32)
         feats_other[:, :, coarse] = 1.0
 
-        print 'Computing step placement scores'
+        print('Computing step placement scores')
         feats_audio = np.zeros((sp_batch_size, 1, 15, 80, 3), dtype=np.float32)
         predictions = []
-        for start in xrange(0, song_feats.shape[0], sp_batch_size):
+        for start in range(0, song_feats.shape[0], sp_batch_size):
             for i, frame_idx in enumerate(range(start, start + sp_batch_size)):
                 feats_audio[i] = make_onset_feature_context(song_feats, frame_idx, 7)
 
@@ -183,9 +185,9 @@ def create_chart_dir(
             prediction = sess.run(sp_model.prediction, feed_dict=feed_dict)[:, 0]
             predictions.append(prediction)
         predictions = np.concatenate(predictions)[:song_feats.shape[0]]
-        print predictions.shape
+        print(predictions.shape)
 
-        print 'Peak picking'
+        print('Peak picking')
         predictions_smoothed = np.convolve(predictions, np.hamming(5), 'same')
         maxima = argrelextrema(predictions_smoothed, np.greater_equal, order=1)[0]
         placed_times = []
@@ -193,14 +195,14 @@ def create_chart_dir(
             t = float(i) * _DT
             if predictions[i] >= threshold:
                 placed_times.append(t)
-        print 'Found {} peaks, density {} steps per second'.format(len(placed_times), len(placed_times) / song_len_sec)
+        print('Found {} peaks, density {} steps per second'.format(len(placed_times), len(placed_times) / song_len_sec))
 
-        print 'Performing step selection'
+        print('Performing step selection')
         state = sess.run(ss_model.initial_state)
         step_prev = '<-1>'
         times_arr = [placed_times[0]] + placed_times + [placed_times[-1]]
         selected_steps = []
-        for i in xrange(1, len(times_arr) - 1):
+        for i in range(1, len(times_arr) - 1):
             dt_prev, dt_next = times_arr[i] - times_arr[i-1], times_arr[i+1] - times_arr[i]
             feed_dict = {
                 ss_model.syms: np.array([[ss_model.arrow_to_encoding(step_prev, 'bagofarrows')]], dtype=np.float32),
@@ -218,13 +220,13 @@ def create_chart_dir(
             step_prev = step
         assert len(placed_times) == len(selected_steps)
 
-        print 'Creating chart text'
+        print('Creating chart text')
         time_to_step = {int(round(t * _HZ)) : step for t, step in zip(placed_times, selected_steps)}
         max_subdiv = max(time_to_step.keys())
         if max_subdiv % _SUBDIV != 0:
             max_subdiv += _SUBDIV - (max_subdiv % _SUBDIV)
-        full_steps = [time_to_step.get(i, '0000') for i in xrange(max_subdiv)]
-        measures = [full_steps[i:i+_SUBDIV] for i in xrange(0, max_subdiv, _SUBDIV)]
+        full_steps = [time_to_step.get(i, '0000') for i in range(max_subdiv)]
+        measures = [full_steps[i:i+_SUBDIV] for i in range(0, max_subdiv, _SUBDIV)]
         measures_txt = '\n,\n'.join(['\n'.join(measure) for measure in measures])
         chart_txt = _CHART_TEMPL.format(
             ccoarse=_DIFFS[coarse],
@@ -233,7 +235,7 @@ def create_chart_dir(
         )
         diff_chart_txts.append(chart_txt)
 
-    print 'Creating SM'
+    print('Creating SM')
     out_dir_name = os.path.split(out_dir)[1]
     audio_out_name = out_dir_name + os.path.splitext(audio_fp)[1]
     sm_txt = _TEMPL.format(
@@ -243,7 +245,7 @@ def create_chart_dir(
         bpm=_BPM,
         charts='\n'.join(diff_chart_txts))
 
-    print 'Saving to {}'.format(out_dir)
+    print('Saving to {}'.format(out_dir))
     try:
         os.mkdir(out_dir)
         audio_ext = os.path.splitext(audio_fp)[1]
@@ -263,10 +265,10 @@ def create_chart_dir(
 
 if __name__ == '__main__':
     import argparse as argparse
-    import cPickle as pickle
+    import pickle
     import os
     import uuid
-    from SimpleXMLRPCServer import SimpleXMLRPCServer
+    from xmlrpc.server import SimpleXMLRPCServer
     import zipfile
 
     from extract_feats import create_analyzers
@@ -297,20 +299,20 @@ if __name__ == '__main__':
       os.makedirs(args.out_dir)
 
     with tf.Graph().as_default(), tf.Session(config=config).as_default() as sess:
-        print 'Loading band norms'
+        print('Loading band norms')
         with open(args.norm_pkl_fp, 'rb') as f:
-            norm = pickle.load(f)
+            norm = pickle.load(f, encoding = 'bytes')
 
-        print 'Creating Mel analyzers'
+        print('Creating Mel analyzers')
         analyzers = create_analyzers(nhop=441)
 
-        print 'Loading labels'
+        print('Loading labels')
         with open(args.labels_txt_fp, 'r') as f:
             idx_to_label = {i + 1:l for i, l in enumerate(f.read().splitlines())}
 
-        print 'Loading step placement model'
+        print('Loading step placement model')
         sp_model = load_sp_model(args.sp_ckpt_fp, args.sp_batch_size)
-        print 'Loading step selection model'
+        print('Loading step selection model')
         ss_model = load_ss_model(args.ss_ckpt_fp)
 
         def create_chart_closure(artist, title, audio_fp, diffs):
@@ -331,15 +333,15 @@ if __name__ == '__main__':
                 raise CreateChartException('Unknown chart creation exception')
 
             out_zip_fp = os.path.join(args.out_dir, str(song_id) + '.zip')
-            print out_zip_fp
-            print 'Creating zip {}'.format(out_zip_fp)
+            print(out_zip_fp)
+            print('Creating zip {}'.format(out_zip_fp))
             with zipfile.ZipFile(out_zip_fp, 'w', zipfile.ZIP_DEFLATED) as f:
                 for fn in os.listdir(out_dir):
                     f.write(os.path.join(out_dir, fn), os.path.join(_PACK_NAME, str(song_id), fn))
 
             return os.path.abspath(out_zip_fp)
 
-        print 'Waiting for RPCs on port {}'.format(args.port)
+        print('Waiting for RPCs on port {}'.format(args.port))
         server = SimpleXMLRPCServer(('localhost', args.port))
         server.register_function(create_chart_closure, 'create_chart')
         server.serve_forever()

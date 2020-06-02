@@ -1,1 +1,3 @@
 *.pyc
+data/
+scripts/var.sh

@@ -80,7 +80,7 @@ def notes_parser(x):
     measures = [measure.splitlines() for measure in notes_split[5].split(',')]
     measures_clean = []
     for measure in measures:
-        measure_clean = filter(lambda pulse: not pulse.strip().startswith('//') and len(pulse.strip()) > 0, measure)
+        measure_clean = list(filter(lambda pulse: not pulse.strip().startswith('//') and len(pulse.strip()) > 0, measure))
         measures_clean.append(measure_clean)
     if len(measures_clean) > 0 and len(measures_clean[-1]) == 0:
         measures_clean = measures_clean[:-1]
@@ -165,7 +165,7 @@ def parse_sm_txt(sm_txt):
         else:
             attrs[attr_name] = attr_val_parsed
 
-    for attr_name, attr_val in attrs.items():
+    for attr_name, attr_val in list(attrs.items()):
         if attr_val == None or attr_val == []:
             del attrs[attr_name]
 

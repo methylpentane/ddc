@@ -75,5 +75,5 @@ if __name__ == '__main__':
 
     for i, chart in enumerate(meta['charts']):
         print('{}: {} {} {}'.format(i, chart['type'], chart['difficulty_fine'], chart['desc_or_author']))
-    chart_idx = int(raw_input('Which chart? '))
+    chart_idx = int(input('Which chart? '))
     write_preview_wav(wav_fp, meta['charts'][chart_idx]['notes'])

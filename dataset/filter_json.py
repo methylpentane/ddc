@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     chart_types = set(filter(lambda x: bool(x), [x.strip() for x in args.chart_types.split(',')]))
     chart_difficulties = set(filter(lambda x: bool(x), [x.strip() for x in args.chart_difficulties.split(',')]))
-    substitutions = filter(lambda x: bool(x), [x.strip() for x in args.substitutions.split(',')])
+    substitutions = list(filter(lambda x: bool(x), [x.strip() for x in args.substitutions.split(',')]))
     assert len(substitutions) % 2 == 0
     substitutions = [(substitutions[i], substitutions[i + 1]) for i in range(0, len(substitutions), 2)]
     substitutions = {x.strip():y.strip() for x, y in substitutions}
@@ -153,7 +153,7 @@ if __name__ == '__main__':
                         if measure not in measures:
                             measures[measure] = []
                         measures[measure].append(note)
-                    measures = [measures[k] for k, v in sorted(measures.items(), key=lambda x: x[0])]
+                    measures = [measures[k] for k, v in sorted(list(measures.items()), key=lambda x: x[0])]
 
                     notes_cleaned = []
                     for measure in measures:

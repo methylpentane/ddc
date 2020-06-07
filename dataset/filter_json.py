@@ -218,5 +218,5 @@ if __name__ == '__main__':
 
             song_meta['charts'] = charts_accepted
             with open(json_out_fp, 'w') as f:
-                f.write(json.dumps(song_meta))
+                f.write(json.dumps(song_meta, indent=4))
         print('Pack accepted {}/{}'.format(pack_naccepted, pack_ntotal))

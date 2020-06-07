@@ -138,7 +138,7 @@ if __name__ == '__main__':
 
             with open(out_json_fp, 'w') as out_f:
                 try:
-                    out_f.write(json.dumps(out_json))
+                    out_f.write(json.dumps(out_json, indent=4))
                 except UnicodeDecodeError:
                     smlog.error('Unicode error in {}'.format(sm_fp))
                     continue

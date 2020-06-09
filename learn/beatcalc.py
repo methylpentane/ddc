@@ -23,7 +23,7 @@ class BeatCalc(object):
             if beat in stops:
                 stops[beat] += stop
             stops[beat] = stop
-        beat_stop = filter(lambda x: x[1] != 0.0, sorted(stops.items(), key=lambda x: x[0]))
+        beat_stop = list(filter(lambda x: x[1] != 0.0, sorted(list(stops.items()), key=lambda x: x[0])))
 
         self.offset = offset
         self.bpms = beat_bpm

@@ -1,6 +1,7 @@
 import numpy as np
 
 from chart import SymbolicChart, OnsetChart
+from functools import reduce
 
 def create_onset_charts(meta, song_features, frame_rate):
     charts = []

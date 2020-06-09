@@ -128,7 +128,7 @@ def main(_):
 
     # Filter charts that are too short
     charts_train_len = len(charts_train)
-    charts_train = filter(lambda x: x.get_nannotations() >= FLAGS.nunroll, charts_train)
+    charts_train = list(filter(lambda x: x.get_nannotations() >= FLAGS.nunroll, charts_train))
     if len(charts_train) != charts_train_len:
         print('{} charts too small for training'.format(charts_train_len - len(charts_train)))
     print('Train set: {} charts, valid set: {} charts, test set: {} charts'.format(len(charts_train), len(charts_valid), len(charts_test)))
@@ -262,7 +262,7 @@ def main(_):
             # Restore or init sym weights
             if FLAGS.sym_rnn_pretrain_model_ckpt_fp:
                 print('Restoring pretrained weights from {}'.format(FLAGS.sym_rnn_pretrain_model_ckpt_fp))
-                var_list_old = filter(lambda x: 'nosym' not in x.name and 'cnn' not in x.name, tf.global_variables())
+                var_list_old = list(filter(lambda x: 'nosym' not in x.name and 'cnn' not in x.name, tf.global_variables()))
                 pretrain_saver = tf.train.Saver(var_list_old)
                 pretrain_saver.restore(sess, FLAGS.sym_rnn_pretrain_model_ckpt_fp)
 

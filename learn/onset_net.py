@@ -2,6 +2,7 @@ import random
 
 import tensorflow as tf
 import numpy as np
+from functools import reduce
 
 dtype = tf.float32
 np_dtype = dtype.as_numpy_dtype
@@ -232,7 +233,7 @@ class OnsetNet:
             else:
                 raise NotImplementedError()
 
-            train_op = optimizer.apply_gradients(zip(grads, tvars), global_step=tf.contrib.framework.get_or_create_global_step())
+            train_op = optimizer.apply_gradients(list(zip(grads, tvars)), global_step=tf.contrib.framework.get_or_create_global_step())
 
         # Tensor exports
         self.feats_audio = feats_audio_nunroll

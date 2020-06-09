@@ -27,7 +27,7 @@ def ez_name(x):
 
 def stride_csv_arg_list(arg, stride, cast=int):
     assert stride > 0
-    l = filter(lambda x: bool(x), [x.strip() for x in arg.split(',')])
+    l = list(filter(lambda x: bool(x), [x.strip() for x in arg.split(',')]))
     l = [cast(x) for x in l]
     assert len(l) % stride == 0
     result = []
@@ -88,14 +88,14 @@ def flatten_dataset_to_charts(dataset):
     return [item for sublist in [x[2] for x in dataset] for item in sublist]
 
 def filter_chart_type(charts, chart_type):
-    return filter(lambda x: x.get_type() == chart_type, charts)
+    return list(filter(lambda x: x.get_type() == chart_type, charts))
 
 def make_onset_feature_context(song_features, frame_idx, radius):
     nframes = song_features.shape[0]
     
     assert nframes > 0
 
-    frame_idxs = range(frame_idx - radius, frame_idx + radius + 1)
+    frame_idxs = list(range(frame_idx - radius, frame_idx + radius + 1))
     context = np.zeros((len(frame_idxs),) + song_features.shape[1:], dtype=song_features.dtype)
     for i, frame_idx in enumerate(frame_idxs):
         if frame_idx >= 0 and frame_idx < nframes:

@@ -340,7 +340,7 @@ class SymNet:
             else:
                 raise NotImplementedError()
 
-            train_op = optimizer.apply_gradients(zip(grads, tvars), global_step=tf.contrib.framework.get_or_create_global_step())
+            train_op = optimizer.apply_gradients(list(zip(grads, tvars)), global_step=tf.contrib.framework.get_or_create_global_step())
 
         self.syms = syms_unrolled
         self.feats_other = feats_other_unrolled

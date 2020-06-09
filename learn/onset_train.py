@@ -418,7 +418,7 @@ def main(_):
                     diff_to_y_scores_pkalgn_all[chart.get_coarse_difficulty()].append(y_scores_pkalgn)
 
                 # lambdas for calculating micro thresholds
-                diffs = diff_to_y_true_all.keys()
+                diffs = list(diff_to_y_true_all.keys())
 
                 # calculate diff perchart
                 diff_to_threshold_perchart = {diff:np.mean(diff_array(diff_to_threshold, diff)) for diff in diffs}
@@ -488,7 +488,7 @@ def main(_):
                     metrics[metrics_key].append(metric)
 
             # calculate micro metrics
-            diffs = diff_to_y_true.keys()
+            diffs = list(diff_to_y_true.keys())
             metrics_micro, prc = eval_metrics_for_scores(all_concat(diff_to_y_true), all_concat(diff_to_y_scores), all_concat(diff_to_y_xentropies), all_concat(diff_to_y_scores_pkalgn), return_prc=True)
 
             # dump PRC for inspection

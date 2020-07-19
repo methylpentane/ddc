@@ -8,6 +8,7 @@ import math
 import random
 
 import numpy as np
+from functools import reduce
 
 from beatcalc import BeatCalc
 from util import make_onset_feature_context, np_pad

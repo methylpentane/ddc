@@ -10,6 +10,14 @@ from sklearn.metrics import roc_curve, precision_recall_curve, auc, accuracy_sco
 from onset_net import OnsetNet
 from util import *
 
+# selection of GPU by akiba
+config = tf.ConfigProto(
+    gpu_options=tf.GPUOptions(
+        visible_device_list="1", # specify GPU number
+        allow_growth=True
+    )
+)
+
 # Data
 tf.app.flags.DEFINE_string('train_txt_fp', '', 'Training dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('valid_txt_fp', '', 'Eval dataset txt file with a list of pickled song files')
@@ -25,10 +33,10 @@ tf.app.flags.DEFINE_integer('audio_nchannels', 3, 'Number of channels per frame'
 tf.app.flags.DEFINE_string('audio_select_channels', '', 'List of CSV audio channels. If non-empty, other channels excluded from model.')
 tf.app.flags.DEFINE_string('feat_diff_feet_to_id_fp', '', '')
 tf.app.flags.DEFINE_string('feat_diff_coarse_to_id_fp', '', '')
-tf.app.flags.DEFINE_bool('feat_diff_dipstick', '', '')
+tf.app.flags.DEFINE_bool('feat_diff_dipstick', None, '')
 tf.app.flags.DEFINE_string('feat_freetext_to_id_fp', '', '')
-tf.app.flags.DEFINE_bool('feat_beat_phase', '', '')
-tf.app.flags.DEFINE_bool('feat_beat_phase_cos', '', '')
+tf.app.flags.DEFINE_bool('feat_beat_phase', None, '')
+tf.app.flags.DEFINE_bool('feat_beat_phase_cos', None, '')
 
 # Network params
 tf.app.flags.DEFINE_string('cnn_filter_shapes', '', 'CSV 3-tuples of filter shapes (time, freq, n)')
@@ -182,7 +190,7 @@ def main(_):
     }
     print('Model configuration: {}'.format(model_config))
 
-    with tf.Graph().as_default(), tf.Session() as sess:
+    with tf.Graph().as_default(), tf.Session(config=config) as sess:
         if do_train:
             print('Creating train model')
             with tf.variable_scope('model_sp', reuse=None):

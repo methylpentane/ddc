@@ -10,15 +10,8 @@ from sklearn.metrics import roc_curve, precision_recall_curve, auc, accuracy_sco
 from onset_net import OnsetNet
 from util import *
 
-# selection of GPU by akiba
-config = tf.ConfigProto(
-    gpu_options=tf.GPUOptions(
-        visible_device_list="1", # specify GPU number
-        allow_growth=True
-    )
-)
-
 # Data
+tf.app.flags.DEFINE_string('GPU_selection', '', 'select GPU number (added by akiba)')
 tf.app.flags.DEFINE_string('train_txt_fp', '', 'Training dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('valid_txt_fp', '', 'Eval dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_bool('z_score', False, 'If true, train and test on z-score of training data')
@@ -79,6 +72,14 @@ tf.app.flags.DEFINE_string('eval_diff_coarse', '', '')
 
 FLAGS = tf.app.flags.FLAGS
 dtype = tf.float32
+
+# selection of GPU by akiba
+config = tf.ConfigProto(
+    gpu_options=tf.GPUOptions(
+        visible_device_list=FLAGS.GPU_selection, # specify GPU number
+        allow_growth=True
+    )
+)
 
 def main(_):
     assert FLAGS.experiment_dir

@@ -1,8 +1,9 @@
 source sml_0_push.sh
 
-SM_DIR=/work/03860/cdonahue/maverick/sm
+# SM_DIR=/work/03860/cdonahue/maverick/sm
 
-EXP_DIR=${SM_DIR}/trained/onset/17_02_05_00_fraxnew_cnn_export
+# EXP_DIR=${SM_DIR}/trained/onset/17_02_05_00_fraxnew_cnn_export
+EXP_DIR=${SM_DIR}/tmp/train
 
 python3 onset_train.py \
 	--train_txt_fp=${SM_DIR}/data/chart_onset/fraxtil/mel80nfft3/fraxtil_train.txt \

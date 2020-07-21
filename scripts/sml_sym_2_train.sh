@@ -1,6 +1,7 @@
 source sml_0_push.sh
 
-EXP_DIR=/tmp/train_sym
+# EXP_DIR=/tmp/train_sym
+EXP_DIR=${SM_DIR}/tmp/train_sym
 rm -rf ${EXP_DIR}
 mkdir -p ${EXP_DIR}
 

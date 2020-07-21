@@ -1,5 +1,9 @@
-SM_DIR=${WORK}/sm
-EXP_DIR=${SM_DIR}/trained/onset/17_01_23_00_cnn_diff_eval
+source sml_0_push.sh
+
+# SM_DIR=${WORK}/sm
+# EXP_DIR=${SM_DIR}/trained/onset/17_01_23_00_cnn_diff_eval
+
+EXP_DIR=${SM_DIR}/tmp/train
 
 pushd ../smlearn
 

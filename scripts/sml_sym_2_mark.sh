@@ -1,6 +1,7 @@
 source sml_0_push.sh
 
-TRAIN_DIR=/tmp/ngram
+# TRAIN_DIR=/tmp/ngram
+TRAIN_DIR=${SM_DIR}/tmp/ngram
 rm -rf ${TRAIN_DIR}
 mkdir -p ${TRAIN_DIR}
 

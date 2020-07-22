@@ -192,6 +192,9 @@ def main(_):
     print('Model configuration: {}'.format(model_config))
 
     with tf.Graph().as_default(), tf.Session(config=config) as sess:
+        # akiba csv
+        csv = open(os.path.join(FLAGS.experiment_dir, 'train.csv'), mode='w')
+
         if do_train:
             print('Creating train model')
             with tf.variable_scope('model_sp', reuse=None):
@@ -346,6 +349,8 @@ def main(_):
                         ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_fscore')
                         model_early_stop_fscore.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
                         eval_best_fscore = fscore_mean
+
+                    csv.write(','.join([str(xentropy_avg_mean),str(auprc_mean),str(fscore_mean)]) + '\n')
 
                     print('Done evaluating')
 

@@ -6,6 +6,7 @@ rm -rf ${EXP_DIR}
 mkdir -p ${EXP_DIR}
 
 python3 sym_train.py \
+        --GPU_selection=${2} \
         --train_txt_fp=${SM_DIR}/data/chart_sym/${1}/symbolic/${1}_train.txt \
         --valid_txt_fp=${SM_DIR}/data/chart_sym/${1}/symbolic/${1}_valid.txt \
         --sym_in_type=bagofarrows \

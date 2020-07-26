@@ -10,6 +10,7 @@ from sym_net import SymNet
 from util import *
 
 # Data
+tf.app.flags.DEFINE_string('GPU_selection', '', 'select GPU number (added by akiba)')
 tf.app.flags.DEFINE_string('train_txt_fp', '', 'Training dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('valid_txt_fp', '', 'Eval dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('test_txt_fp', '', 'Test dataset txt file with a list of pickled song files')
@@ -51,10 +52,14 @@ tf.app.flags.DEFINE_string('feat_diff_feet_to_id_fp', '', '')
 tf.app.flags.DEFINE_string('feat_diff_coarse_to_id_fp', '', '')
 tf.app.flags.DEFINE_bool('feat_diff_dipstick', False, '')
 tf.app.flags.DEFINE_string('feat_freetext_to_id_fp', '', '')
-tf.app.flags.DEFINE_integer('feat_bucket_beat_diff_n', None, '')
-tf.app.flags.DEFINE_float('feat_bucket_beat_diff_max', None, '')
-tf.app.flags.DEFINE_integer('feat_bucket_time_diff_n', None, '')
-tf.app.flags.DEFINE_float('feat_bucket_time_diff_max', None, '')
+# tf.app.flags.DEFINE_integer('feat_bucket_beat_diff_n', None, '')
+# tf.app.flags.DEFINE_float('feat_bucket_beat_diff_max', None, '')
+# tf.app.flags.DEFINE_integer('feat_bucket_time_diff_n', None, '')
+# tf.app.flags.DEFINE_float('feat_bucket_time_diff_max', None, '')
+tf.app.flags.DEFINE_integer('feat_bucket_beat_diff_n', 0, '')
+tf.app.flags.DEFINE_float('feat_bucket_beat_diff_max', 0, '')
+tf.app.flags.DEFINE_integer('feat_bucket_time_diff_n', 0, '')
+tf.app.flags.DEFINE_float('feat_bucket_time_diff_max', 0, '')
 
 # Network params
 tf.app.flags.DEFINE_integer('batch_size', 128, 'Batch size for training')
@@ -90,6 +95,14 @@ tf.app.flags.DEFINE_string('generate_vocab_fp', '', '')
 
 FLAGS = tf.app.flags.FLAGS
 dtype = tf.float32
+
+# selection of GPU by akiba
+config = tf.ConfigProto(
+    gpu_options=tf.GPUOptions(
+        visible_device_list=FLAGS.GPU_selection, # specify GPU number
+        allow_growth=True
+    )
+)
 
 def main(_):
     assert FLAGS.experiment_dir
@@ -228,7 +241,7 @@ def main(_):
     }
     print('Model configuration: {}'.format(model_config))
 
-    with tf.Graph().as_default(), tf.Session() as sess:
+    with tf.Graph().as_default(), tf.Session(config=config) as sess:
         if do_train:
             print('Creating train model')
             with tf.variable_scope('model_ss', reuse=None):

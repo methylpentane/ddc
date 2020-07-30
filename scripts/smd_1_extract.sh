@@ -1,3 +1,4 @@
+# dataset/extract_json.pyの実行
 source smd_0_push.sh
 
 python3 extract_json.py \

@@ -1,6 +1,8 @@
 import os
 
 def ez_name(x):
+    # パックの名前から[a-z0-9]の文字以外を処理して簡単にする
+    # ex) "Fraxtil's Beast Beats" は "Fraxtil_sBeastBeats"になる
     x = ''.join(x.strip().split())
     x_clean = []
     for char in x:
@@ -11,6 +13,8 @@ def ez_name(x):
     return ''.join(x_clean)
 
 def get_subdirs(root, choose=False):
+    # データセット中のパック名(fraxtilならtsunamixとか)を取得する
+    # extract.jsonでフラグ"--choose"を指定しているとき、パック名を指定するダイアログを出す
     subdir_names = sorted(list(filter(lambda x: os.path.isdir(os.path.join(root, x)), os.listdir(root))))
     if choose:
         for i, subdir_name in enumerate(subdir_names):

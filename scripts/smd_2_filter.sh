@@ -1,3 +1,6 @@
+# filter_json.pyを実行する
+# 学習の実行に不要なデータ(challengeより上の難易度、地雷ノーツ、"0000")を削る
+# あと、permutationの項目でデータセットの水増しを設定している
 source smd_0_push.sh
 
 python3 filter_json.py \

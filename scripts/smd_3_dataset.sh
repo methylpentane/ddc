@@ -1,3 +1,7 @@
+# データセットのtrain,valid,testを分けるtxtを生成するスクリプト
+# --splitnames を指定すれば他の名前にもできる
+# --shuffle_seed を指定すると分けた結果が同じになる
+# パッケージのディレクトリごとにtxtを作成して、それをシェルで結合したものがjson_filtの下に作られている
 source smd_0_push.sh
 
 python3 dataset_json.py \

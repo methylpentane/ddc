@@ -9,12 +9,13 @@ do
 	./smd_1_extract.sh ${COLL} --itg
 done
 
-for COLL in speirs sudzi
-do
-	./smd_1_extract.sh ${COLL} --itg
-done
+# for COLL in speirs sudzi
+# do
+# 	./smd_1_extract.sh ${COLL} --itg
+# done
 
-for COLL in fraxtil itg speirs sudzi
+# for COLL in fraxtil itg speirs sudzi
+for COLL in fraxtil itg
 do
 	./smd_2_filter.sh ${COLL}
 	./smd_3_dataset.sh ${COLL} filt

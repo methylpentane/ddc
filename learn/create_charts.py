@@ -6,9 +6,11 @@ from functools import reduce
 def create_onset_charts(meta, song_features, frame_rate):
     charts = []
     for raw_chart in meta['charts']:
-        metadata = (raw_chart['difficulty_coarse'], raw_chart['difficulty_fine'], raw_chart['type'], raw_chart['desc_or_author'])
+        chart_metadata = (raw_chart['difficulty_coarse'], raw_chart['difficulty_fine'], raw_chart['type'], raw_chart['desc_or_author'])
         try:
-            onset_chart = OnsetChart(song_metadata, song_features, frame_rate, metadata, raw_chart['notes'])
+            # ここで、song_metadataはTitleやArtistなどを含む曲の情報なんだけど、
+            # 下のmain内が実行されてsong_metadataが宣言されることが前提になっており、ここで宣言されていないうんちコード
+            onset_chart = OnsetChart(song_metadata, song_features, frame_rate, chart_metadata, raw_chart['notes'])
         except Exception as e:
             print('Error from {}: {}'.format(meta['title'].encode('ascii', 'ignore'), e))
             continue
@@ -19,9 +21,9 @@ def create_onset_charts(meta, song_features, frame_rate):
 def create_symbolic_charts(meta, song_features, frame_rate, sym_k):
     charts = []
     for raw_chart in meta['charts']:
-        metadata = (raw_chart['difficulty_coarse'], raw_chart['difficulty_fine'], raw_chart['type'], raw_chart['desc_or_author'])
+        chart_metadata = (raw_chart['difficulty_coarse'], raw_chart['difficulty_fine'], raw_chart['type'], raw_chart['desc_or_author'])
         try:
-            sym_chart = SymbolicChart(song_metadata, song_features, frame_rate, metadata, raw_chart['notes'], sym_k)
+            sym_chart = SymbolicChart(song_metadata, song_features, frame_rate, chart_metadata, raw_chart['notes'], sym_k)
         except ValueError as e:
             print('Error from {}: {}'.format(meta['title'].encode('ascii', 'ignore'), e))
             continue

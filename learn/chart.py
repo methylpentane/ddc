@@ -68,6 +68,7 @@ class OnsetChart(Chart):
         self.onsets = set(filter(lambda x: x >= 0, self.onsets))
         self.onsets = set(filter(lambda x: x < self.nframes, self.onsets))
         # TODO: filter greater than song_features len?
+        # 結果格納されるのは「オンセットであるフレーム番号(タイムスタンプでない)の集合」っぽい
 
         self.first_onset = min(self.onsets)
         self.last_onset = max(self.onsets)

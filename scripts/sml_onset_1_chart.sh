@@ -1,3 +1,6 @@
+# 譜面jsonから教師データのテンソルを作るコード
+# --chart_typeがonsetの時にonsetnetの学習データができる、symならsymnet
+# 学習データは(メタデータ、パワースペクトル、教師データ)の形でタプルにされてpickleになる
 source sml_0_push.sh
 
 python3 create_charts.py \

@@ -1,3 +1,5 @@
+# 音楽ファイルから、パワースペクトルを生成する
+# extract_feats内でessentiaを利用している
 source sml_0_push.sh
 
 python3 extract_feats.py \

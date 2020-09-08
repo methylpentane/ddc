@@ -26,6 +26,8 @@ def ez_name(x):
     return ''.join(x_clean)
 
 def stride_csv_arg_list(arg, stride, cast=int):
+    # strideの数だけタプルにしてまとめる
+    # ex. [0,1,2,3,4,5] stride=2 の時[(0,1),(2,3),(4,5)] stride=1なら変化なし
     assert stride > 0
     l = list(filter(lambda x: bool(x), [x.strip() for x in arg.split(',')]))
     l = [cast(x) for x in l]
@@ -60,6 +62,7 @@ def open_dataset_fps(*args):
                 dataset.append(pickle.load(f))
         datasets.append(dataset)
     return datasets[0] if len(datasets) == 1 else datasets
+    # datasets = [[trainデータリスト], [validデータリスト], [evalデータリスト]]
 
 def select_channels(dataset, channels):
     for i, (song_metadata, song_features, song_charts) in enumerate(dataset):

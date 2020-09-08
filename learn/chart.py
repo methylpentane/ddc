@@ -155,6 +155,7 @@ class OnsetChart(Chart):
         return np.array(feats_audio, dtype=dtype), np.concatenate(feats_other), y
 
     def sample(self, n, exclude_onset_neighbors=0, nunroll=0):
+        # その譜面の中から、exclude_onset_neighborを処理した上で、フレームをn個ランダムサンプル onsetかどうかは見ない
         if self._blanks_memoized:
             valid = self._blanks_memoized
         else:

@@ -82,18 +82,20 @@ def main(_):
 
     assert args.experiment_dir
     do_train = args.nepochs != 0 and bool(args.train_txt_fp)
-    do_valid = bool(args.valid_txt_fp)
-    do_train_eval = do_train and do_valid
+    # do_valid = bool(args.valid_txt_fp)
+    # do_train_eval = do_train and do_valid
+    do_valid = do_train and bool(args.valid_txt_fp)
     do_eval = bool(args.test_txt_fp)
-    do_cnn_export = bool(args.export_feat_name)
+    # do_cnn_export = bool(args.export_feat_name)
 
 
     # Load data
     print('Loading data')
     train_data, valid_data, test_data = open_dataset_fps(args.train_txt_fp, args.valid_txt_fp, args.test_txt_fp)
+    # each data: list of (song_meta, song_feature, chart)
 
 
-    # Select channels ... "channels"はsong_featureの3次元目[窓関数の大きさの種類]
+    # Select channels ... song feature's 3rd axis
     if args.audio_select_channels:
         channels = stride_csv_arg_list(args.audio_select_channels, 1, int)
         print('Selecting channels {} from data'.format(channels))
@@ -101,7 +103,8 @@ def main(_):
             select_channels(data, channels)
 
 
-    # Calculate validation metrics ... これはsong_featureを時間軸上で標準化している
+    # calcualte mean and standard score
+    # if remake (train, valid, test), I need to delete valid_mean_std.pkl to normalize again
     if args.z_score:
         z_score_fp = os.path.join(args.experiment_dir, 'valid_mean_std.pkl')
         if do_valid and not os.path.exists(z_score_fp):
@@ -119,7 +122,7 @@ def main(_):
 
 
     # Flatten the data into chart references for easier iteration
-    # 各曲4x5=20個ある(はず!)chartをすべて接続して単一のリストにする
+    # 各曲4x5=20個ある(はず!)chartをすべて接続して単一のリストにする 難易度ごっちゃ
     print('Flattening datasets into charts')
     charts_train = flatten_dataset_to_charts(train_data)
     charts_valid = flatten_dataset_to_charts(valid_data)
@@ -214,9 +217,9 @@ def main(_):
                 if args.rnn_nunroll > 1:
                     eval_batch_size = 1
                 model_eval = OnsetNet(mode='eval', target_weight_strategy='seq', batch_size=eval_batch_size, export_feat_name=args.export_feat_name, **model_config)
-                model_early_stop_xentropy_avg = tf.train.Saver(tf.global_variables(), max_to_keep=None)
-                model_early_stop_auprc = tf.train.Saver(tf.global_variables(), max_to_keep=None)
-                model_early_stop_fscore = tf.train.Saver(tf.global_variables(), max_to_keep=None)
+                # model_early_stop_xentropy_avg = tf.train.Saver(tf.global_variables(), max_to_keep=None)
+                # model_early_stop_auprc = tf.train.Saver(tf.global_variables(), max_to_keep=None)
+                # model_early_stop_fscore = tf.train.Saver(tf.global_variables(), max_to_keep=None)
 
         # Restore or init model
         model_saver = tf.train.Saver(tf.global_variables())
@@ -230,47 +233,47 @@ def main(_):
         # Create summaries
         # summeries はtensorflowについているtensorboardへの情報表示のために必要なやつ 当然torchでは使わない
         if do_train:
-            summary_writer = tf.summary.FileWriter(args.experiment_dir, sess.graph)
+            # summary_writer = tf.summary.FileWriter(args.experiment_dir, sess.graph)
 
-            epoch_mean_xentropy = tf.placeholder(tf.float32, shape=[], name='epoch_mean_xentropy')
-            epoch_mean_time = tf.placeholder(tf.float32, shape=[], name='epoch_mean_time')
-            epoch_var_xentropy = tf.placeholder(tf.float32, shape=[], name='epoch_var_xentropy')
-            epoch_var_time = tf.placeholder(tf.float32, shape=[], name='epoch_var_time')
-            epoch_summaries = tf.summary.merge([
-                tf.summary.scalar('epoch_mean_xentropy', epoch_mean_xentropy),
-                tf.summary.scalar('epoch_mean_time', epoch_mean_time),
-                tf.summary.scalar('epoch_var_xentropy', epoch_var_xentropy),
-                tf.summary.scalar('epoch_var_time', epoch_var_time)
-            ])
+            # epoch_mean_xentropy = tf.placeholder(tf.float32, shape=[], name='epoch_mean_xentropy')
+            # epoch_mean_time = tf.placeholder(tf.float32, shape=[], name='epoch_mean_time')
+            # epoch_var_xentropy = tf.placeholder(tf.float32, shape=[], name='epoch_var_xentropy')
+            # epoch_var_time = tf.placeholder(tf.float32, shape=[], name='epoch_var_time')
+            # epoch_summaries = tf.summary.merge([
+            #     tf.summary.scalar('epoch_mean_xentropy', epoch_mean_xentropy),
+            #     tf.summary.scalar('epoch_mean_time', epoch_mean_time),
+            #     tf.summary.scalar('epoch_var_xentropy', epoch_var_xentropy),
+            #     tf.summary.scalar('epoch_var_time', epoch_var_time)
+            # ])
 
-            # ここもsummery
-            eval_metric_names = ['xentropy_avg', 'pos_xentropy_avg', 'auroc', 'auprc', 'fscore', 'precision', 'recall', 'threshold', 'accuracy', 'perplexity', 'density_rel']
-            eval_metrics = {}
-            eval_summaries = []
-            for eval_metric_name in eval_metric_names:
-                name_mean = 'eval_mean_{}'.format(eval_metric_name)
-                name_var = 'eval_var_{}'.format(eval_metric_name)
-                ph_mean = tf.placeholder(tf.float32, shape=[], name=name_mean)
-                ph_var = tf.placeholder(tf.float32, shape=[], name=name_var)
-                summary_mean = tf.summary.scalar(name_mean, ph_mean)
-                summary_var = tf.summary.scalar(name_var, ph_var)
-                eval_summaries.append(tf.summary.merge([summary_mean, summary_var]))
-                eval_metrics[eval_metric_name] = (ph_mean, ph_var)
-            eval_time = tf.placeholder(tf.float32, shape=[], name='eval_time')
-            eval_time_summary = tf.summary.scalar('eval_time', eval_time)
-            eval_summaries = tf.summary.merge([eval_time_summary] + eval_summaries)
+            # # ここもsummery
+            # eval_metric_names = ['xentropy_avg', 'pos_xentropy_avg', 'auroc', 'auprc', 'fscore', 'precision', 'recall', 'threshold', 'accuracy', 'perplexity', 'density_rel']
+            # eval_metrics = {}
+            # eval_summaries = []
+            # for eval_metric_name in eval_metric_names:
+            #     name_mean = 'eval_mean_{}'.format(eval_metric_name)
+            #     name_var = 'eval_var_{}'.format(eval_metric_name)
+            #     ph_mean = tf.placeholder(tf.float32, shape=[], name=name_mean)
+            #     ph_var = tf.placeholder(tf.float32, shape=[], name=name_var)
+            #     summary_mean = tf.summary.scalar(name_mean, ph_mean)
+            #     summary_var = tf.summary.scalar(name_var, ph_var)
+            #     eval_summaries.append(tf.summary.merge([summary_mean, summary_var]))
+            #     eval_metrics[eval_metric_name] = (ph_mean, ph_var)
+            # eval_time = tf.placeholder(tf.float32, shape=[], name='eval_time')
+            # eval_time_summary = tf.summary.scalar('eval_time', eval_time)
+            # eval_summaries = tf.summary.merge([eval_time_summary] + eval_summaries)
 
-            # Calculate epoch stuff
-            train_nframes = sum([chart.get_nframes_annotated() for chart in charts_train])
-            examples_per_batch = args.batch_size
-            examples_per_batch *= args.rnn_nunroll if args.weight_strategy == 'rect' else 1
+            # Calculate epoch stuff 実際のバッチサイズはbatch*nunrollになっている
+            train_nframes = sum([chart.get_nframes_annotated() for chart in charts_train]) # すべての、解答が存在するフレームの数
+            examples_per_batch = args.batch_size # nunroll=1ならこうなる
+            examples_per_batch *= args.rnn_nunroll if args.weight_strategy == 'rect' else 1 # rectの場合はnunroll個のテンソルがすべて誤差計算対象
             batches_per_epoch = train_nframes // examples_per_batch
             nbatches = args.nepochs * batches_per_epoch
             print('{} frames in data, {} batches per epoch, {} batches total'.format(train_nframes, batches_per_epoch, nbatches))
 
             # Init epoch
             lr_summary = model_train.assign_lr(sess, args.lr)
-            summary_writer.add_summary(lr_summary, 0)
+            # summary_writer.add_summary(lr_summary, 0)
             epoch_xentropies = []
             epoch_times = []
 
@@ -301,12 +304,12 @@ def main(_):
 
                     lr_decay = args.lr_decay_rate ** max(epoch_num - args.lr_decay_delay, 0)
                     lr_summary = model_train.assign_lr(sess, args.lr * lr_decay)
-                    summary_writer.add_summary(lr_summary, batch_num)
+                    # summary_writer.add_summary(lr_summary, batch_num)
 
                     epoch_xentropy = np.mean(epoch_xentropies)
                     print('Epoch mean cross-entropy (nats) {}'.format(epoch_xentropy))
-                    epoch_summary = sess.run(epoch_summaries, feed_dict={epoch_mean_xentropy: epoch_xentropy, epoch_mean_time: np.mean(epoch_times), epoch_var_xentropy: np.var(epoch_xentropies), epoch_var_time: np.var(epoch_times)})
-                    summary_writer.add_summary(epoch_summary, batch_num)
+                    # epoch_summary = sess.run(epoch_summaries, feed_dict={epoch_mean_xentropy: epoch_xentropy, epoch_mean_time: np.mean(epoch_times), epoch_var_xentropy: np.var(epoch_xentropies), epoch_var_time: np.var(epoch_times)})
+                    # summary_writer.add_summary(epoch_summary, batch_num)
 
                     epoch_xentropies = []
                     epoch_times = []
@@ -314,10 +317,10 @@ def main(_):
                 if batch_num % args.nbatches_per_ckpt == 0:
                     print('Saving model weights...')
                     ckpt_fp = os.path.join(args.experiment_dir, 'onset_net_train')
-                    model_saver.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
+                    # model_saver.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
                     print('Done saving!')
 
-                # train_eval っていうのは要はvalidの事らしい 紛らわしいんだよクソが
+                # train_eval っていうのは要はvalidの事らしい 紛らわしい xentropy, auprc, fscoreを計算している
                 if do_train_eval and batch_num % args.nbatches_per_eval == 0:
                     print('Evaluating...')
                     eval_start_time = time.time()

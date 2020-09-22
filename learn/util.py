@@ -62,9 +62,10 @@ def open_dataset_fps(*args):
                 dataset.append(pickle.load(f))
         datasets.append(dataset)
     return datasets[0] if len(datasets) == 1 else datasets
-    # datasets = [[trainデータリスト], [validデータリスト], [evalデータリスト]]
+    # datasets = [[train data list], [valid data list], [eval data list]]
 
 def select_channels(dataset, channels):
+    # omit channels that isnt selected by argument
     for i, (song_metadata, song_features, song_charts) in enumerate(dataset):
         song_features_selected = song_features[:, :, channels]
         dataset[i] = (song_metadata, song_features_selected, song_charts)
@@ -72,6 +73,7 @@ def select_channels(dataset, channels):
             chart.song_features = song_features_selected
 
 def apply_z_norm(dataset, mean_per_band, std_per_band):
+    # standardize dataset
     for i, (song_metadata, song_features, song_charts) in enumerate(dataset):
         song_features_z = song_features - mean_per_band
         song_features_z /= std_per_band
@@ -95,7 +97,7 @@ def filter_chart_type(charts, chart_type):
 
 def make_onset_feature_context(song_features, frame_idx, radius):
     nframes = song_features.shape[0]
-    
+
     assert nframes > 0
 
     frame_idxs = list(range(frame_idx - radius, frame_idx + radius + 1))

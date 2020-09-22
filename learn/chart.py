@@ -37,7 +37,7 @@ class Chart(object):
 
     def get_coarse_difficulty(self):
         return self.metadata[0]
-    
+
     def get_foot_difficulty(self):
         return self.metadata[1]
 
@@ -113,23 +113,24 @@ class OnsetChart(Chart):
                     beat_phase=False,
                     beat_phase_cos=False):
         feats_audio = make_onset_feature_context(self.song_features, frame_idx, time_context_radius)
+        # 音楽特徴量のスライス、cnnへの入力を返す。存在しないタイムステップはゼロ埋め
         feats_other = [np.zeros(0, dtype=dtype)]
 
         if diff_feet_to_id:
             diff_feet = diff_feet_to_id[str(self.get_foot_difficulty())]
             diff_feet_onehot = np.zeros(max(diff_feet_to_id.values()) + 1, dtype=dtype)
             if diff_dipstick:
-                diff_feet_onehot[:diff_feet + 1] = 1.0
+                diff_feet_onehot[:diff_feet + 1] = 1.0 # dipstickこれ意味ないやろ
             else:
                 diff_feet_onehot[diff_feet] = 1.0
-            feats_other.append(diff_feet_onehot)
+            feats_other.append(diff_feet_onehot) # 一次元onehotベクトル
         if diff_coarse_to_id:
             diff_coarse = diff_coarse_to_id[str(self.get_coarse_difficulty())]
             diff_coarse_onehot = np.zeros(max(diff_coarse_to_id.values()) + 1, dtype=dtype)
             if diff_dipstick:
                 diff_coarse_onehot[:diff_coarse + 1] = 1.0
             else:
-                diff_coarse_onehot[diff_coarse] = 1.0
+                diff_coarse_onehot[diff_coarse] = 1.0 # 足と同じ形
             feats_other.append(diff_coarse_onehot)
         if freetext_to_id:
             freetext = self.get_freetext()
@@ -138,11 +139,12 @@ class OnsetChart(Chart):
             freetext_id = freetext_to_id[freetext]
             freetext_onehot = np.zeros(max(freetext_to_id.values()) + 1, dtype=dtype)
             freetext_onehot[freetext_id] = 1.0
-            feats_other.append(freetext_onehot)
+            feats_other.append(freetext_onehot) # 譜面作者に対して割り当てられたidのonehot これも足と同じ形
+            # ここで取得しているデータは本来採譜者の名前じゃないといけないというルールは無いので、他の楽曲パックで使える特徴量かは不明
         if beat_phase:
             beat = self.beat_calc.time_to_beat(frame_idx * self.dt)
             beat_phase = beat - int(beat)
-            feats_other.append(np.array([beat_phase], dtype=dtype))
+            feats_other.append(np.array([beat_phase], dtype=dtype)) # これはonehotじゃないんだ?
         if beat_phase_cos:
             beat = self.beat_calc.time_to_beat(frame_idx * self.dt)
             beat_phase = beat - int(beat)
@@ -155,7 +157,8 @@ class OnsetChart(Chart):
         return np.array(feats_audio, dtype=dtype), np.concatenate(feats_other), y
 
     def sample(self, n, exclude_onset_neighbors=0, nunroll=0):
-        # その譜面の中から、exclude_onset_neighborを処理した上で、フレームをn個ランダムサンプル onsetかどうかは見ない
+        # その譜面の中から、exclude_onset_neighborを処理した上で、フレーム番号をn個ランダムサンプル onsetかどうかは見ない
+        # 最初からnunroll個分のフレームはlstmの都合上バッチ抽出から省く
         if self._blanks_memoized:
             valid = self._blanks_memoized
         else:
@@ -203,14 +206,15 @@ class OnsetChart(Chart):
             dtype,
             zack_hack_div_2=0,
             **feat_kwargs):
+        # 実際に１組のデータを与えている関数
         seq_feats_audio = []
         seq_feats_other = []
         seq_y = []
         for i in range(subseq_start - zack_hack_div_2, subseq_start + subseq_len + zack_hack_div_2):
             feats_audio, feats_other, y = self.get_example(i, dtype=dtype, **feat_kwargs)
-            seq_feats_audio.append(feats_audio)
-            seq_feats_other.append(feats_other)
-            seq_y.append(y)
+            seq_feats_audio.append(feats_audio) # audio melspectrogram
+            seq_feats_other.append(feats_other) # other feature
+            seq_y.append(y)                     # answer (onset or not onset)
         zhmin = zack_hack_div_2
         zhmax = zack_hack_div_2 + subseq_len
 

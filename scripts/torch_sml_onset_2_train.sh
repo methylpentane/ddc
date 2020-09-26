@@ -32,7 +32,7 @@ CUDA_VISIBLE_DEVICE={2} python3 torch_onset_train.py \
         --exclude_post_onsets \
         --grad_clip=5.0 \
         --opt=sgd \
-        --lr=0.1 \
+        --lr=0.01 \
         --lr_decay_rate=1.0 \
         --lr_decay_delay=0 \
         --nbatches_per_ckpt=4000 \

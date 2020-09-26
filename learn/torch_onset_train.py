@@ -241,8 +241,8 @@ def main():
             output = model(x=feats_audio, other=feats_other)
             loss = loss_function(output, targets)
             loss.backward()
-            print('loss: ',end='')
-            print(loss)
+            print('binary-xntrop-loss: ',end='')
+            print(loss.item())
             optimizer.step()
 
             # epoch_xentropies.append(batch_xentropy)

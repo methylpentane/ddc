@@ -7,28 +7,28 @@ import numpy as np
 from functools import reduce
 
 ## dtype = tf.float32
-## np_dtype = dtype.as_numpy_dtype
+np_dtype = np.float32
 
 class OnsetNet(nn.Module):
     def __init__(self,
-                 mode,
+                 # mode,
                  batch_size,
                  audio_context_radius,
                  audio_nbands,
                  audio_nchannels,
                  nfeats,
                  cnn_filter_shapes,
-                 cnn_init,
+                 # cnn_init,
                  cnn_pool,
                  cnn_rnn_zack,
                  rnn_cell_type,
                  rnn_size,
                  rnn_nlayers,
-                 rnn_init,
+                 # rnn_init,
                  rnn_nunroll,
                  rnn_keep_prob,
                  dnn_sizes,
-                 dnn_init,
+                 # dnn_init,
                  dnn_keep_prob,
                  dnn_nonlin,
                  target_weight_strategy, # 'rect', 'last', 'pos', 'seq'
@@ -69,7 +69,7 @@ class OnsetNet(nn.Module):
         # if cnn_rnn_zack:
         #     feats_audio = tf.reshape(feats_audio_nunroll, shape=[batch_size, rnn_nunroll + zack_hack, audio_nbands, audio_nchannels])
         # else:
-        #     feats_audio = tf.reshape(feats_audio_nunroll, shape=[batch_size * rnn_nunroll, audio_context_len, audio_nbands, audio_nchannels])
+        #     feats_audio = tf.reshape(feats_audio_nunroll, shape=[batch_size * rnn_nunroll, audio_context_len, audio_nbands, audio_nchannels]) # (n,w,h,c)
         # feats_other = tf.reshape(feats_other_nunroll, shape=[batch_size * rnn_nunroll, nfeats])
         # if mode != 'gen':
         #     targets = tf.reshape(targets_nunroll, shape=[batch_size * rnn_nunroll])
@@ -85,13 +85,14 @@ class OnsetNet(nn.Module):
                              'out_channels' : cnn_1_filter[2],
                              'kernel_size'  : tuple(cnn_1_filter[:-1]),
                              'stride'       : 1,
-                             'padding'      : 0} # 'VALID'
+                             'padding'      : 0,
+                             'dilation'     : 1} # 'VALID'
         self.cnn_1_output_shape = self.calculate_cnn_output(self.cnn_input_shape, **self.cnn_1_kwargs)
 
         self.pool_1_kwargs = {'kernel_size' : tuple(pool_1_kernel),
                               'stride'      : tuple(pool_1_kernel),
                               'ceil_mode'   : True, # 'SAME'
-                              'dilation'    : 0}
+                              'dilation'    : 1}
         self.pool_1_output_shape = self.calculate_pool_output(self.cnn_1_output_shape, **self.pool_1_kwargs)
 
         self.cnn_2_kwargs = {'in_channels'  : cnn_1_filter[2],
@@ -99,13 +100,13 @@ class OnsetNet(nn.Module):
                              'kernel_size'  : tuple(cnn_2_filter[:-1]),
                              'stride'       : 1,
                              'padding'      : 0, # 'VALID'
-                             'dilation'     : 0}
+                             'dilation'     : 1}
         self.cnn_2_output_shape = self.calculate_cnn_output(self.pool_1_output_shape, **self.cnn_2_kwargs)
 
         self.pool_2_kwargs = {'kernel_size' : tuple(pool_2_kernel),
                               'stride'      : tuple(pool_2_kernel),
                               'ceil_mode'   : True, # 'SAME'
-                              'dilation'    : 0}
+                              'dilation'    : 1}
         self.pool_2_output_shape = self.calculate_pool_output(self.cnn_2_output_shape, **self.pool_2_kwargs)
 
         self.cnn_1 = nn.Conv2d(**self.cnn_1_kwargs)
@@ -114,6 +115,7 @@ class OnsetNet(nn.Module):
         self.pool_2 = nn.MaxPool2d(**self.pool_2_kwargs)
 
         # LSTM layers
+        self.lstm_input_shape_before_concat = [batch_size, rnn_nunroll, self.pool_2_output_shape[1]*self.pool_2_output_shape[2]*self.pool_2_output_shape[3]] # batch_first
         self.lstm_input_shape = [batch_size, rnn_nunroll, self.pool_2_output_shape[1]*self.pool_2_output_shape[2]*self.pool_2_output_shape[3] + nfeats] # batch_first
         self.lstm_kwargs = {'input_size'    : self.lstm_input_shape[2],
                             'hidden_size'   : rnn_size,
@@ -123,7 +125,6 @@ class OnsetNet(nn.Module):
                             'dropout'       : rnn_keep_prob,
                             'bidirectional' : False}
         self.lstm_output_shape = [batch_size, rnn_nunroll, rnn_size]
-
         self.lstm = nn.LSTM(**self.lstm_kwargs)
 
         # linear layers
@@ -135,29 +136,39 @@ class OnsetNet(nn.Module):
                                 'out_features' : dnn_sizes[1],
                                 'bias'         : True}
         self.linear_output_shape = [batch_size, rnn_nunroll, dnn_sizes[1]]
-
         self.linear_1 = nn.Linear(**self.linear_1_kwargs)
         self.linear_2 = nn.Linear(**self.linear_2_kwargs)
 
         # before last sigmoid
+        self.linear_last_input_shape = self.linear_output_shape
         self.linear_last_kwargs = {'in_features'  : self.linear_output_shape[2],
                                    'out_features' : 1,
                                    'bias'         : True}
-        self.last_output_shape = [batch_size, rnn_nunroll, 1]
+        self.linear_last_output_shape = [batch_size, rnn_nunroll, 1]
         self.linear_last = nn.Linear(**self.linear_last_kwargs)
 
+        # self.mode = mode
+        self.batch_size = batch_size
+        self.rnn_nunroll = rnn_nunroll
+        self.zack_hack_div_2 = 0
+        # self.do_rnn = do_rnn
+        self.target_weight_strategy = target_weight_strategy
+
     def forward(self, x, other):
-        x = functional.ReLU(self.cnn_1(x))
+        x = x.reshape(self.cnn_input_shape)
+        x.permute(0,3,2,1)
+        x = functional.relu(self.cnn_1(x))
         x = self.pool_1(x)
-        x = functional.ReLU(self.cnn_2(x))
+        x = functional.relu(self.cnn_2(x))
         x = self.pool_2(x)
         x = torch.flatten(x, start_dim=1)    # [batch*unroll, all_feats]
-        x = torch.cat((x,other),1)           # [batch*unroll, all_feats+other]
-        x = x.reshape(self.lstm_input_shape) # [batch, unroll, all_feats+other]
+        x = x.reshape(self.lstm_input_shape_before_concat) # [batch, unroll, all_feats]
+        x = torch.cat((x,other),2)           # [batch, unroll, all_feats+other]
         x,_ = self.lstm(x)
-        x = functional.ReLU(self.linear_1(x))
-        x = functional.ReLU(self.linear_2(x))
+        x = functional.relu(self.linear_1(x))
+        x = functional.relu(self.linear_2(x))
         x = self.linear_last(x)
+        x = torch.squeeze(x)
         return x
 
 
@@ -518,31 +529,31 @@ class OnsetNet(nn.Module):
                 yield audio[:, np.newaxis], other[:, np.newaxis], target[:, np.newaxis], weight[:, np.newaxis]
 
     def calculate_cnn_output(self, input_tensor, **cnn_kwargs):
-        if type(cnn_kwargs['kernel_size']) = int:
+        if type(cnn_kwargs['kernel_size']) == int:
             kernel_size = (cnn_kwargs['kernel_size'], cnn_kwargs['kernel_size'])
         else:
             kernel_size = cnn_kwargs['kernel_size']
         if 'padding' in cnn_kwargs:
-            if type(cnn_kwargs['padding']) = int:
+            if type(cnn_kwargs['padding']) == int:
                 padding = (cnn_kwargs['padding'], cnn_kwargs['padding'])
             else:
                 padding = cnn_kwargs['padding']
         else:
             padding = (0,0)
         if 'dilation' in cnn_kwargs:
-            if type(cnn_kwargs['dilation']) = int:
+            if type(cnn_kwargs['dilation']) == int:
                 dilation = (cnn_kwargs['dilation'], cnn_kwargs['dilation'])
             else:
                 dilation = cnn_kwargs['dilation']
         else:
-            dilation = (0,0)
+            dilation = (1,1)
         if 'stride' in cnn_kwargs:
-            if type(cnn_kwargs['stride']) = int:
+            if type(cnn_kwargs['stride']) == int:
                 stride = (cnn_kwargs['stride'], cnn_kwargs['stride'])
             else:
                 stride = cnn_kwargs['stride']
         else:
-            stride = (0,0)
+            stride = (1,1)
         if 'ceil_mode' in cnn_kwargs: # pool only
             if cnn_kwargs['ceil_mode'] is True:
                 func = lambda x: math.ceil(x)
@@ -551,10 +562,15 @@ class OnsetNet(nn.Module):
         else:
             func = lambda x: math.floor(x)
 
-        channel_out = cnn_kwargs['out_channels']
+        if 'out_channels' in cnn_kwargs:
+            channel_out = cnn_kwargs['out_channels']
+        else:
+            channel_out = input_tensor[1]
+
+        # print(padding,dilation,stride,channel_out,input_tensor)
         height_out = func((input_tensor[2] + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1)/stride[0] + 1)
         width_out  = func((input_tensor[3] + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1)/stride[1] + 1)
         return [input_tensor[0], channel_out, height_out, width_out]
 
     def calculate_pool_output(self, input_tensor, **pool_kwargs):
-        return calculate_cnn_output(input_tensor, **pool_kwargs)
+        return self.calculate_cnn_output(input_tensor, **pool_kwargs)

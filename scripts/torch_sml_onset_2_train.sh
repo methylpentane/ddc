@@ -6,8 +6,7 @@ EXP_DIR=${SM_DIR}/tmp/train
 rm -rf ${EXP_DIR}
 mkdir -p ${EXP_DIR}
 
-python3 torch_onset_train.py \
-        --GPU_selection=${2} \
+CUDA_VISIBLE_DEVICE={2} python3 torch_onset_train.py \
         --train_txt_fp=${SM_DIR}/data/chart_onset/${1}/mel80hop441/${1}_train.txt \
         --valid_txt_fp=${SM_DIR}/data/chart_onset/${1}/mel80hop441/${1}_valid.txt \
         --z_score \
@@ -28,7 +27,6 @@ python3 torch_onset_train.py \
         --dnn_keep_prob=0.5 \
         --batch_size=256 \
         --weight_strategy=rect \
-        --nobalanced_class \
         --exclude_onset_neighbors=2 \
         --exclude_pre_onsets \
         --exclude_post_onsets \

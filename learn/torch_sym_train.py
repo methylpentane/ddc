@@ -10,7 +10,7 @@ from sym_net import SymNet
 from util import *
 
 # Data
-tf.app.flags.DEFINE_string('GPU_selection', '', 'select GPU number (added by akiba)')
+# tf.app.flags.DEFINE_string('GPU_selection', '', 'select GPU number (added by akiba)')
 tf.app.flags.DEFINE_string('train_txt_fp', '', 'Training dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('valid_txt_fp', '', 'Eval dataset txt file with a list of pickled song files')
 tf.app.flags.DEFINE_string('test_txt_fp', '', 'Test dataset txt file with a list of pickled song files')
@@ -96,13 +96,13 @@ tf.app.flags.DEFINE_string('generate_vocab_fp', '', '')
 FLAGS = tf.app.flags.FLAGS
 dtype = tf.float32
 
-# selection of GPU by akiba
-config = tf.ConfigProto(
-    gpu_options=tf.GPUOptions(
-        visible_device_list=FLAGS.GPU_selection, # specify GPU number
-        allow_growth=True
-    )
-)
+# # selection of GPU by akiba
+# config = tf.ConfigProto(
+#     gpu_options=tf.GPUOptions(
+#         visible_device_list=FLAGS.GPU_selection, # specify GPU number
+#         allow_growth=True
+#     )
+# )
 
 def main(_):
     assert FLAGS.experiment_dir

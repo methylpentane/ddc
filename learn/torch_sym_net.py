@@ -8,7 +8,7 @@ import numpy as np
 from util import np_pad
 
 dtype = tf.float32
-np_dtype = dtype.as_numpy_dtype
+np_dtype = np.float32
 
 # https://github.com/sherjilozair/char-rnn-tensorflow/blob/master/model.py
 class SymNet:
@@ -56,7 +56,7 @@ class SymNet:
         in_nunroll = nunroll
         out_nunroll = nunroll if do_rnn else 1
 
-        _IN_SPECIAL = ['<-{}>'.format(i + 1) for i in range(1 if do_rnn else in_nunroll)[::-1]]
+        _IN_SPECIAL = ['<-{}>'.format(i + 1) for i in range(1 if do_rnn else in_nunroll)[::-1]] # so ['<-1>'] if do_rnn
 
         # input sequence
         if sym_in_type == 'onehot':

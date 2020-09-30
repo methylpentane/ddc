@@ -227,7 +227,7 @@ class SymbolicChart(Chart):
         self.song_features = song_features
         dt = 1.0 / frame_rate
 
-        self.sequence = []
+        self.sequence = [] # answer label
 
         self.seq_beat_phase = []
         self.seq_beat_diff = []
@@ -241,7 +241,7 @@ class SymbolicChart(Chart):
         self.seq_beat_wraps = []
         self.seq_frame_idxs = []
 
-        prepend = ['<-{}>'.format(i + 1) for i in range(pre)[::-1]]
+        prepend = ['<-{}>'.format(i + 1) for i in range(pre)[::-1]] #ex ['<-3>', '<-2>', '<-1>'] in case of pre=3
         prepend_annotations = [self.annotations[0][:3] + [p] for p in prepend]
         annotations = prepend_annotations + self.annotations
         prog_last = 0.0

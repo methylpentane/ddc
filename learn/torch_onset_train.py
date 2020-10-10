@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from torch import optim
 from torch import nn
-from torch.nn import functional
 from sklearn.metrics import roc_curve, precision_recall_curve, auc, accuracy_score
 
 from torch_onset_net import OnsetNet

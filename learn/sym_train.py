@@ -335,6 +335,11 @@ def main(_):
             while FLAGS.nepochs < 0 or batch_num < nbatches:
                 batch_time_start = time.time()
                 syms, feats_other, feats_audio, targets, target_weights = model_train.prepare_train_batch(charts_train, **feats_config)
+                print('syms: ', syms.shape)
+                print('feats_other: ', feats_other.shape)
+                print('feats_audio: ', feats_audio.shape)
+                print('targets: ', targets.shape)
+                print('target_weights: ', target_weights.shape)
                 feed_dict = {
                     model_train.syms: syms,
                     model_train.feats_other: feats_other,

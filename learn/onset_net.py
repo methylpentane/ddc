@@ -396,6 +396,7 @@ class OnsetNet:
             subseq_start = 0
 
         for frame_idx in range(subseq_start, eval_chart.get_nframes(), subseq_len):
+            # frame_idxはstride=1でなくstride=subseq_len
             feat_kwargs['zack_hack_div_2'] = self.zack_hack_div_2
             audio, other, target = eval_chart.get_subsequence(frame_idx, subseq_len, np_dtype, **feat_kwargs)
 

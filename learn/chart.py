@@ -153,7 +153,7 @@ class OnsetChart(Chart):
             beat_phase_cos *= 0.5
             feats_other.append(np.array([beat_phase_cos], dtype=dtype))
 
-        y = dtype(frame_idx in self.onsets)
+        y = dtype(frame_idx in self.onsets) # 0 or 1
         return np.array(feats_audio, dtype=dtype), np.concatenate(feats_other), y
 
     def sample(self, n, exclude_onset_neighbors=0, nunroll=0):

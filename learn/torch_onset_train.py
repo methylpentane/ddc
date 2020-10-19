@@ -218,12 +218,13 @@ def main():
         print('{} frames in data, {} batches per epoch, {} batches total'.format(train_nframes, batches_per_epoch, nbatches))
 
         model.train()
+        with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='w') as csv:
+            csv.write(','.join(['xentropy_avg_mean','auprc_mean','fscore_mean']) + '\n')
 
-        # epoch_xentropies = []
-        # epoch_times = []
-        # eval_best_xentropy_avg = float('inf')
-        # eval_best_auprc = 0.0
-        # eval_best_fscore = 0.0
+        epoch_xentropies = []
+        eval_best_xentropy_avg = float('inf')
+        eval_best_auprc = 0.0
+        eval_best_fscore = 0.0
         batch_num = 0
         while args.nepochs < 0 or batch_num < nbatches:
             # batch_time_start = time.time()
@@ -232,22 +233,88 @@ def main():
             feats_other = torch.from_numpy(feats_other).to(DEVICE)
             targets = torch.from_numpy(targets).to(DEVICE)
             target_weights = torch.from_numpy(target_weights).to(DEVICE)
-            print(feats_audio.size(), feats_other.size(), targets.size(), target_weights.size())
+            # print(feats_audio.size(), feats_other.size(), targets.size(), target_weights.size())
             # feats_audio = feats_audio.reshape()
             # feats_audio.permute(0,3,2,1) #TODO: now transform is done in model.forward()
 
             optimizer.zero_grad()
             output = model(x=feats_audio, other=feats_other)
             loss = loss_function(output, targets)
+            batch_xentropy = loss.item()
+            print('batch #{} done. binary-xntrop-loss: {}'.format(batch_num+1, batch_xentropy))
+            epoch_xentropies.append(batch_xentropy)
             loss.backward()
-            print('binary-xntrop-loss: ',end='')
-            print(loss.item())
             optimizer.step()
 
-            # epoch_xentropies.append(batch_xentropy)
             # epoch_times.append(time.time() - batch_time_start)
 
             batch_num += 1
+
+            # epoch complete
+            if batch_num % batches_per_epoch == 0:
+                epoch_num = batch_num // batches_per_epoch
+                print('Completed epoch {}'.format(epoch_num))
+                epoch_xentropy = np.mean(epoch_xentropies)
+                print('Epoch mean cross-entropy (nats) {}'.format(epoch_xentropy))
+                epoch_xentropies.clear()
+
+            # model save
+            if batch_num % args.nbatches_per_ckpt == 0:
+                print('Saving model weights...', end="")
+                model_save_fp = os.path.join(args.experiment_dir, 'torch_onset_net_train.pth')
+                torch.save(model.state_dict(), model_save_fp)
+                print('Done!')
+
+            # validation
+            if do_valid and batch_num % args.nbatches_per_eval == 0:
+                print('Validating...')
+                metrics = defaultdict(list)
+                for chart in charts_valid:
+                    # print('inferrence & metrics on {}'.format(chart.song_metadata['title']), end='')
+                    y_true, y_scores, y_xentropies, y_scores_pkalgn = model_scores_for_chart(chart, model, **feats_config)
+
+                    chart_metrics = eval_metrics_for_scores(y_true, y_scores, y_xentropies, y_scores_pkalgn)
+                    for metrics_key, metric_value in chart_metrics.items():
+                        metrics[metrics_key].append(metric_value)
+                    # print('done')
+
+                metrics = {k: (np.mean(v), np.var(v)) for k, v in metrics.items()}
+                # feed_dict = {}
+                # for metric_name, (mean, var) in metrics.items():
+                #     feed_dict[eval_metrics[metric_name][0]] = mean
+                #     feed_dict[eval_metrics[metric_name][1]] = var
+                # feed_dict[eval_time] = time.time() - eval_start_time
+
+                # summary_writer.add_summary(sess.run(eval_summaries, feed_dict=feed_dict), batch_num)
+
+                xentropy_avg_mean = metrics['xentropy_avg'][0]
+                if xentropy_avg_mean < eval_best_xentropy_avg:
+                    print('Xentropy {} better than previous {}'.format(xentropy_avg_mean, eval_best_xentropy_avg))
+                    # ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_xentropy_avg')
+                    # model_early_stop_xentropy_avg.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
+                    eval_best_xentropy_avg = xentropy_avg_mean
+
+                auprc_mean = metrics['auprc'][0]
+                if auprc_mean > eval_best_auprc:
+                    print('AUPRC {} better than previous {}'.format(auprc_mean, eval_best_auprc))
+                    # ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_auprc')
+                    # model_early_stop_auprc.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
+                    eval_best_auprc = auprc_mean
+
+                fscore_mean = metrics['fscore'][0]
+                if fscore_mean > eval_best_fscore:
+                    print('Fscore {} better than previous {}'.format(fscore_mean, eval_best_fscore))
+                    # ckpt_fp = os.path.join(FLAGS.experiment_dir, 'onset_net_early_stop_fscore')
+                    # model_early_stop_fscore.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
+                    eval_best_fscore = fscore_mean
+
+                with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='a') as csv:
+                    csv.write(','.join([str(xentropy_avg_mean),str(auprc_mean),str(fscore_mean)]) + '\n')
+
+                print('Done evaluating')
+                model.train()
+
+
 
     # with tf.Graph().as_default(), tf.Session() as sess:
     #     # akiba csv
@@ -596,51 +663,53 @@ def main():
     #         print('COPY PASTA:')
     #         print(','.join([str(x) for x in copy_pasta]))
 
-def model_scores_for_chart(sess, chart, model, **feat_kwargs):
-    if model.do_rnn:
-        state = sess.run(model.initial_state)
-    targets_all = []
+def model_scores_for_chart(chart, model, **feat_kwargs):
+    # if model.do_rnn:
+    #     state = sess.run(model.initial_state)
+    # targets_all = []
     scores = []
     xentropies = []
     weight_sum = 0.0
     target_sum = 0.0
 
+    model.eval()
+
     chunk_len = args.rnn_nunroll if model.do_rnn else args.batch_size
     for feats_audio, feats_other, targets, target_weights in model.iterate_eval_batches(chart, **feat_kwargs):
-        feed_dict = {
-            model.feats_audio: feats_audio,
-            model.feats_other: feats_other,
-            model.targets: targets,
-            model.target_weights: target_weights
-        }
-        if model.do_rnn:
-            feed_dict[model.initial_state] = state
-            state, seq_scores, seq_xentropies = sess.run([model.final_state, model.prediction, model.neg_log_lhoods], feed_dict=feed_dict)
-            scores.append(seq_scores[0])
-            xentropies.append(seq_xentropies[0])
-        else:
-            seq_scores, seq_xentropies = sess.run([model.prediction, model.neg_log_lhoods], feed_dict=feed_dict)
-            scores.append(seq_scores[:, 0])
-            xentropies.append(seq_xentropies[:, 0])
+        feats_audio = torch.from_numpy(feats_audio).to(DEVICE)
+        feats_other = torch.from_numpy(feats_other).to(DEVICE)
+        targets = torch.from_numpy(targets).to(DEVICE)
+        target_weights = torch.from_numpy(target_weights).to(DEVICE)
+        # print(feats_audio.size(), feats_other.size(), targets.size(), target_weights.size())
 
-        targets_all.append(targets)
-        weight_sum += np.sum(target_weights)
-        target_sum += np.sum(targets)
+        with torch.no_grad():
+            output = model(x = feats_audio, other = feats_other)
+            loss_function_eval = nn.BCEWithLogitsLoss(reduction = 'none')
+            loss_eval = loss_function_eval(output, targets)
+            scores.append(output[0])
+            xentropies.append(loss_eval[0])
 
-    targets_all = np.concatenate(targets_all)
+        weight_sum += torch.sum(target_weights).item()
+        target_sum += torch.sum(targets).item()
+
     assert int(weight_sum) == chart.get_nframes_annotated()
     assert int(target_sum) == chart.get_nonsets()
 
     # scores may be up to nunroll-1 longer than song feats but will be left-aligned
-    scores = np.concatenate(scores)
-    xentropies = np.concatenate(xentropies)
-    assert scores.shape[0] >= chart.get_nframes()
-    assert scores.shape[0] < (chart.get_nframes() + 2 * chunk_len)
-    assert xentropies.shape == scores.shape
+    scores_torch = torch.cat(scores)
+    xentropies_torch = torch.cat(xentropies)
+    assert scores_torch.size()[0] >= chart.get_nframes()
+    assert scores_torch.size()[0] < (chart.get_nframes() + 2 * chunk_len)
+    # print(xentropies.size(), scores.size())
+    assert xentropies_torch.size() == scores_torch.size()
     if model.do_rnn:
-        xentropies = xentropies[chunk_len - 1:]
-        scores = scores[chunk_len - 1:]
-    scores = scores[:chart.get_nframes()]
+        xentropies_torch = xentropies_torch[chunk_len - 1:]
+        scores_torch = scores_torch[chunk_len - 1:]
+    scores_torch = scores_torch[:chart.get_nframes()]
+
+    # numpy
+    scores_np = scores_torch.clone().to('cpu').detach().numpy()
+    xentropies_np = xentropies_torch.clone().to('cpu').detach().numpy()
 
     # find predicted onsets (smooth and peak pick)
     if args.eval_window_type == 'hann':
@@ -649,13 +718,13 @@ def model_scores_for_chart(sess, chart, model, **feat_kwargs):
         window = np.hamming(args.eval_window_width)
     else:
         raise NotImplementedError()
-    pred_onsets = find_pred_onsets(scores, window)
+    pred_onsets = find_pred_onsets(scores_np, window)
 
     # align scores with true to create sklearn-compatible vectors
     true_onsets = set(chart.get_onsets())
-    y_true, y_scores_pkalgn = align_onsets_to_sklearn(true_onsets, pred_onsets, scores, tolerance=args.eval_align_tolerance)
-    y_scores = scores[chart.get_first_onset():chart.get_last_onset() + 1]
-    y_xentropies = xentropies[chart.get_first_onset():chart.get_last_onset() + 1]
+    y_true, y_scores_pkalgn = align_onsets_to_sklearn(true_onsets, pred_onsets, scores_np, tolerance=args.eval_align_tolerance)
+    y_scores = scores_np[chart.get_first_onset():chart.get_last_onset() + 1]
+    y_xentropies = xentropies_np[chart.get_first_onset():chart.get_last_onset() + 1]
 
     return y_true, y_scores, y_xentropies, y_scores_pkalgn
 

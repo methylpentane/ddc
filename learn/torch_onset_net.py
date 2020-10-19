@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional
 import numpy as np
 from functools import reduce
+from operator import mul
 
 ## dtype = tf.float32
 np_dtype = np.float32
@@ -78,7 +79,10 @@ class OnsetNet(nn.Module):
         # CNN layers
         cnn_1_filter, cnn_2_filter = cnn_filter_shapes # [(band,time,channel),(band,time,channel)]
         pool_1_kernel, pool_2_kernel = cnn_pool # [(band,time),(band,time)]
+
         self.cnn_input_shape = [batch_size*rnn_nunroll, audio_nchannels, audio_nbands, audio_context_len] # (n,c,h,w)
+        self.eval_cnn_input_shape = [1*rnn_nunroll, audio_nchannels, audio_nbands, audio_context_len]
+
         self.other_input_shape = [batch_size*rnn_nunroll, nfeats] # nfeats = number of other_feats
 
         self.cnn_1_kwargs = {'in_channels'  : audio_nchannels,
@@ -86,7 +90,8 @@ class OnsetNet(nn.Module):
                              'kernel_size'  : tuple(cnn_1_filter[:-1]),
                              'stride'       : 1,
                              'padding'      : 0,
-                             'dilation'     : 1} # 'VALID'
+                             'dilation'     : 1,   # 'VALID'
+                             'bias'         : True}
         self.cnn_1_output_shape = self.calculate_cnn_output(self.cnn_input_shape, **self.cnn_1_kwargs)
 
         self.pool_1_kwargs = {'kernel_size' : tuple(pool_1_kernel),
@@ -100,7 +105,8 @@ class OnsetNet(nn.Module):
                              'kernel_size'  : tuple(cnn_2_filter[:-1]),
                              'stride'       : 1,
                              'padding'      : 0, # 'VALID'
-                             'dilation'     : 1}
+                             'dilation'     : 1,
+                             'bias'         : True}
         self.cnn_2_output_shape = self.calculate_cnn_output(self.pool_1_output_shape, **self.cnn_2_kwargs)
 
         self.pool_2_kwargs = {'kernel_size' : tuple(pool_2_kernel),
@@ -113,9 +119,14 @@ class OnsetNet(nn.Module):
         self.pool_1 = nn.MaxPool2d(**self.pool_1_kwargs)
         self.cnn_2 = nn.Conv2d(**self.cnn_2_kwargs)
         self.pool_2 = nn.MaxPool2d(**self.pool_2_kwargs)
+        nn.init.uniform_(self.cnn_1.weight, *self.calculate_init_factor(self.cnn_1, factor=1.43))
+        nn.init.constant_(self.cnn_1.bias, 0.1)
+        nn.init.uniform_(self.cnn_2.weight, *self.calculate_init_factor(self.cnn_2, factor=1.43))
+        nn.init.constant_(self.cnn_2.bias, 0.1)
 
         # LSTM layers
         self.lstm_input_shape_before_concat = [batch_size, rnn_nunroll, self.pool_2_output_shape[1]*self.pool_2_output_shape[2]*self.pool_2_output_shape[3]] # batch_first
+        self.eval_lstm_input_shape_before_concat = [1, rnn_nunroll, self.pool_2_output_shape[1]*self.pool_2_output_shape[2]*self.pool_2_output_shape[3]] # batch_first
         self.lstm_input_shape = [batch_size, rnn_nunroll, self.pool_2_output_shape[1]*self.pool_2_output_shape[2]*self.pool_2_output_shape[3] + nfeats] # batch_first
         self.lstm_kwargs = {'input_size'    : self.lstm_input_shape[2],
                             'hidden_size'   : rnn_size,
@@ -138,6 +149,10 @@ class OnsetNet(nn.Module):
         self.linear_output_shape = [batch_size, rnn_nunroll, dnn_sizes[1]]
         self.linear_1 = nn.Linear(**self.linear_1_kwargs)
         self.linear_2 = nn.Linear(**self.linear_2_kwargs)
+        nn.init.uniform_(self.linear_1.weight, *self.calculate_init_factor(self.linear_1, factor=1.15))
+        nn.init.constant_(self.linear_1.bias, 0.1)
+        nn.init.uniform_(self.linear_2.weight, *self.calculate_init_factor(self.linear_2, factor=1.15))
+        nn.init.constant_(self.linear_2.bias, 0.1)
 
         # before last sigmoid
         self.linear_last_input_shape = self.linear_output_shape
@@ -146,29 +161,36 @@ class OnsetNet(nn.Module):
                                    'bias'         : True}
         self.linear_last_output_shape = [batch_size, rnn_nunroll, 1]
         self.linear_last = nn.Linear(**self.linear_last_kwargs)
+        self.init_tf_truncated_normal_(self.linear_last.weight, stddev=1./self.linear_output_shape[2])
+        nn.init.constant_(self.linear_last.bias, 0.)
 
-        # self.mode = mode
         self.batch_size = batch_size
         self.rnn_nunroll = rnn_nunroll
         self.zack_hack_div_2 = 0
-        # self.do_rnn = do_rnn
+        self.do_rnn = True
         self.target_weight_strategy = target_weight_strategy
 
     def forward(self, x, other):
-        x = x.reshape(self.cnn_input_shape)
+        if self.training:
+            x = x.reshape(self.cnn_input_shape)
+        else:
+            x = x.reshape(self.eval_cnn_input_shape)
         x.permute(0,3,2,1)
         x = functional.relu(self.cnn_1(x))
         x = self.pool_1(x)
         x = functional.relu(self.cnn_2(x))
         x = self.pool_2(x)
         x = torch.flatten(x, start_dim=1)    # [batch*unroll, all_feats]
-        x = x.reshape(self.lstm_input_shape_before_concat) # [batch, unroll, all_feats]
+        if self.training:
+            x = x.reshape(self.lstm_input_shape_before_concat) # [batch, unroll, all_feats]
+        else:
+            x = x.reshape(self.eval_lstm_input_shape_before_concat) # [batch, unroll, all_feats]
         x = torch.cat((x,other),2)           # [batch, unroll, all_feats+other]
         x,_ = self.lstm(x)
         x = functional.relu(self.linear_1(x))
         x = functional.relu(self.linear_2(x))
         x = self.linear_last(x)
-        x = torch.squeeze(x)
+        x = torch.squeeze(x,dim=-1)
         return x
 
 
@@ -504,7 +526,7 @@ class OnsetNet(nn.Module):
             return batch_feats_audio, batch_feats_other, batch_targets, batch_target_weights
 
     def iterate_eval_batches(self, eval_chart, **feat_kwargs):
-        assert self.target_weight_strategy == 'seq'
+        # assert self.target_weight_strategy == 'seq' #おそらく特に意味ない
 
         if self.do_rnn:
             subseq_len = self.rnn_nunroll
@@ -516,8 +538,9 @@ class OnsetNet(nn.Module):
         for frame_idx in range(subseq_start, eval_chart.get_nframes(), subseq_len):
             feat_kwargs['zack_hack_div_2'] = self.zack_hack_div_2
             audio, other, target = eval_chart.get_subsequence(frame_idx, subseq_len, np_dtype, **feat_kwargs)
+            # print(audio.shape, other.shape, target.shape)
 
-            weight = np.ones_like(target)
+            weight = np.ones_like(target) # 結局rectと一緒
             mask_left = max(eval_chart.get_first_onset() - frame_idx, 0)
             mask_right = max((eval_chart.get_last_onset() + 1) - frame_idx, 0)
             weight[:mask_left] = 0.0
@@ -574,3 +597,27 @@ class OnsetNet(nn.Module):
 
     def calculate_pool_output(self, input_tensor, **pool_kwargs):
         return self.calculate_cnn_output(input_tensor, **pool_kwargs)
+
+    def calculate_init_factor(self, module, factor=1.0):
+        # this is emulation of tf.uniform_unit_scaling_initializer.
+        dim = None
+        if type(module) == nn.Conv2d:
+            dim = reduce(mul, module.weight.size()[1:])
+        elif type(module) == nn.Linear:
+            dim = module.weight.size()[1]
+        else:
+            raise NotImplementedError()
+        return -1.732/dim*factor, 1.732/dim*factor
+        # 1.732: sqrt(3)
+
+    def init_tf_truncated_normal_(self, weight, mean=0., stddev=1.):
+        with torch.no_grad():
+            var = stddev**2
+            U = torch.distributions.uniform.Uniform(mean, var)
+            u = U.sample(weight.data.shape)
+
+            a = torch.Tensor([-stddev])
+            b = torch.Tensor([stddev])
+            Fa = 0.5 * (1 + torch.erf(a/(2**0.5)))
+            Fb = 0.5 * (1 + torch.erf(b/(2**0.5)))
+            weight.data = (2**0.5)*torch.erfinv(2 *((Fb - Fa) * u + Fa) - 1)

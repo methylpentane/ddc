@@ -38,7 +38,7 @@ python3 onset_train.py \
         --lr_decay_rate=1.0 \
         --lr_decay_delay=0 \
         --nbatches_per_ckpt=4000 \
-        --nbatches_per_eval=4000 \
+        --nbatches_per_eval=2 \
         --nepochs=128 \
         --experiment_dir=${EXP_DIR} \
         --eval_window_type=hamming \

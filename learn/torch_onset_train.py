@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch import optim
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import roc_curve, precision_recall_curve, auc, accuracy_score
 
 from torch_onset_net import OnsetNet
@@ -218,8 +219,9 @@ def main():
         print('{} frames in data, {} batches per epoch, {} batches total'.format(train_nframes, batches_per_epoch, nbatches))
 
         model.train()
-        with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='w') as csv:
-            csv.write(','.join(['xentropy_avg_mean','auprc_mean','fscore_mean']) + '\n')
+        # with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='w') as csv:
+        #     csv.write(','.join(['xentropy_avg_mean','auprc_mean','fscore_mean']) + '\n')
+        summary_writer = SummaryWriter(log_dir=os.path.join(args.experiment_dir, 'logs'))
 
         epoch_xentropies = []
         eval_best_xentropy_avg = float('inf')
@@ -238,7 +240,7 @@ def main():
             # feats_audio.permute(0,3,2,1) #TODO: now transform is done in model.forward()
 
             optimizer.zero_grad()
-            output = model(x=feats_audio, other=feats_other)
+            output, _ = model(x=feats_audio, other=feats_other, hidden=None)
             loss = loss_function(output, targets)
             batch_xentropy = loss.item()
             print('batch #{} done. binary-xntrop-loss: {}'.format(batch_num+1, batch_xentropy))
@@ -256,12 +258,13 @@ def main():
                 print('Completed epoch {}'.format(epoch_num))
                 epoch_xentropy = np.mean(epoch_xentropies)
                 print('Epoch mean cross-entropy (nats) {}'.format(epoch_xentropy))
+                summary_writer.add_scalar('train/epoch_xentropy', epoch_xentropy, epoch_num)
                 epoch_xentropies.clear()
 
             # model save
             if batch_num % args.nbatches_per_ckpt == 0:
                 print('Saving model weights...', end="")
-                model_save_fp = os.path.join(args.experiment_dir, 'torch_onset_net_train.pth')
+                model_save_fp = os.path.join(args.experiment_dir, 'torch_onset_net_train_{}.pth'.format(batch_num))
                 torch.save(model.state_dict(), model_save_fp)
                 print('Done!')
 
@@ -308,12 +311,17 @@ def main():
                     # model_early_stop_fscore.save(sess, ckpt_fp, global_step=tf.contrib.framework.get_or_create_global_step())
                     eval_best_fscore = fscore_mean
 
-                with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='a') as csv:
-                    csv.write(','.join([str(xentropy_avg_mean),str(auprc_mean),str(fscore_mean)]) + '\n')
+                summary_writer.add_scalar('valid/xentropy_avg_mean', xentropy_avg_mean, batch_num)
+                summary_writer.add_scalar('valid/auprc_mean', auprc_mean, batch_num)
+                summary_writer.add_scalar('valid/fscore_mean', fscore_mean, batch_num)
+
+                # with open(os.path.join(args.experiment_dir, 'train_onset.csv'), mode='a') as csv:
+                #     csv.write(','.join([str(xentropy_avg_mean),str(auprc_mean),str(fscore_mean)]) + '\n')
 
                 print('Done evaluating')
                 model.train()
 
+        summary_writer.close()
 
 
     # with tf.Graph().as_default(), tf.Session() as sess:
@@ -671,6 +679,7 @@ def model_scores_for_chart(chart, model, **feat_kwargs):
     xentropies = []
     weight_sum = 0.0
     target_sum = 0.0
+    state = None
 
     model.eval()
 
@@ -683,7 +692,7 @@ def model_scores_for_chart(chart, model, **feat_kwargs):
         # print(feats_audio.size(), feats_other.size(), targets.size(), target_weights.size())
 
         with torch.no_grad():
-            output = model(x = feats_audio, other = feats_other)
+            output, state = model(x=feats_audio, other=feats_other, hidden=state)
             loss_function_eval = nn.BCEWithLogitsLoss(reduction = 'none')
             loss_eval = loss_function_eval(output, targets)
             scores.append(output[0])

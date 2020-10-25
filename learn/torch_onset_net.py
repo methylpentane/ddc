@@ -170,7 +170,7 @@ class OnsetNet(nn.Module):
         self.do_rnn = True
         self.target_weight_strategy = target_weight_strategy
 
-    def forward(self, x, other):
+    def forward(self, x, other, hidden=None):
         if self.training:
             x = x.reshape(self.cnn_input_shape)
         else:
@@ -186,12 +186,12 @@ class OnsetNet(nn.Module):
         else:
             x = x.reshape(self.eval_lstm_input_shape_before_concat) # [batch, unroll, all_feats]
         x = torch.cat((x,other),2)           # [batch, unroll, all_feats+other]
-        x,_ = self.lstm(x)
+        x, hidden = self.lstm(x, hidden)
         x = functional.relu(self.linear_1(x))
         x = functional.relu(self.linear_2(x))
         x = self.linear_last(x)
         x = torch.squeeze(x,dim=-1)
-        return x
+        return x, hidden
 
 
         # cnn_output = feats_audio

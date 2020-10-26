@@ -143,12 +143,16 @@ class OnsetNet(nn.Module):
         self.linear_1_kwargs = {'in_features'  : self.linear_input_shape[2],
                                 'out_features' : dnn_sizes[0],
                                 'bias'         : True}
+        self.linear_1_dropout_kwargs = {'p': dnn_keep_prob}
         self.linear_2_kwargs = {'in_features'  : dnn_sizes[0],
                                 'out_features' : dnn_sizes[1],
                                 'bias'         : True}
+        self.linear_2_dropout_kwargs = {'p': dnn_keep_prob}
         self.linear_output_shape = [batch_size, rnn_nunroll, dnn_sizes[1]]
         self.linear_1 = nn.Linear(**self.linear_1_kwargs)
+        self.linear_1_dropout = nn.Dropout(**self.linear_1_dropout_kwargs)
         self.linear_2 = nn.Linear(**self.linear_2_kwargs)
+        self.linear_2_dropout = nn.Dropout(**self.linear_2_dropout_kwargs)
         nn.init.uniform_(self.linear_1.weight, *self.calculate_init_factor(self.linear_1, factor=1.15))
         nn.init.constant_(self.linear_1.bias, 0.1)
         nn.init.uniform_(self.linear_2.weight, *self.calculate_init_factor(self.linear_2, factor=1.15))
@@ -188,7 +192,9 @@ class OnsetNet(nn.Module):
         x = torch.cat((x,other),2)           # [batch, unroll, all_feats+other]
         x, hidden = self.lstm(x, hidden)
         x = functional.relu(self.linear_1(x))
+        x = self.linear_1_dropout(x)
         x = functional.relu(self.linear_2(x))
+        x = self.linear_2_dropout(x)
         x = self.linear_last(x)
         x = torch.squeeze(x,dim=-1)
         return x, hidden
